@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildBatchPrompts, getBatchTaskDuration, runWithConcurrency } from '../batchQueue'
+import {
+  buildBatchPrompts,
+  getBatchTaskDuration,
+  MAX_BATCH_CONCURRENCY,
+  runWithConcurrency,
+} from '../batchQueue'
 
 describe('batchQueue', () => {
   it('builds repeated prompts within the supported range', () => {
@@ -10,7 +15,8 @@ describe('batchQueue', () => {
       'cinematic city',
     ])
     expect(buildBatchPrompts('repeat', ' ', [], 4)).toEqual([])
-    expect(buildBatchPrompts('repeat', 'portrait', [], 99)).toHaveLength(8)
+    expect(buildBatchPrompts('repeat', 'portrait', [], 1)).toHaveLength(1)
+    expect(buildBatchPrompts('repeat', 'portrait', [], 99)).toHaveLength(MAX_BATCH_CONCURRENCY)
   })
 
   it('normalizes confirmed prompts and caps the batch at eight', () => {
@@ -32,8 +38,8 @@ describe('batchQueue', () => {
     const completed: number[] = []
 
     await runWithConcurrency(
-      [0, 1, 2, 3, 4],
-      2,
+      [0, 1, 2, 3, 4, 5, 6, 7],
+      MAX_BATCH_CONCURRENCY,
       () => false,
       async (item) => {
         active += 1
@@ -44,7 +50,7 @@ describe('batchQueue', () => {
       }
     )
 
-    expect(peak).toBe(2)
-    expect(completed.sort()).toEqual([0, 1, 2, 3, 4])
+    expect(peak).toBe(MAX_BATCH_CONCURRENCY)
+    expect(completed.sort()).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
   })
 })

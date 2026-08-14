@@ -30,6 +30,7 @@ export default function ImageGenerator() {
     referenceImages,
     batchPromptMode,
     batchCount,
+    batchConcurrency,
     batchPrompts,
     batchTasks,
     batchDownloading,
@@ -55,6 +56,7 @@ export default function ImageGenerator() {
     handleReferenceImages,
     setBatchPromptMode,
     setBatchCount,
+    setBatchConcurrency,
     setBatchPrompts,
     setPrompt,
     setNegativePrompt,
@@ -131,9 +133,11 @@ export default function ImageGenerator() {
                 onReferenceImagesChange={handleReferenceImages}
                 batchPromptMode={batchPromptMode}
                 batchCount={batchCount}
+                batchConcurrency={batchConcurrency}
                 batchPrompts={batchPrompts}
                 setBatchPromptMode={setBatchPromptMode}
                 setBatchCount={setBatchCount}
+                setBatchConcurrency={setBatchConcurrency}
                 setBatchPrompts={setBatchPrompts}
               />
             </div>

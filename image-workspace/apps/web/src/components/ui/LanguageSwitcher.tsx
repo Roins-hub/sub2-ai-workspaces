@@ -13,7 +13,7 @@ export function LanguageSwitcher() {
     <button
       type="button"
       onClick={toggleLanguage}
-      className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+      className="flex items-center gap-1.5 rounded-xl px-2 py-1 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
       title={t('language.switchTo')}
     >
       <Languages className="w-3.5 h-3.5" />

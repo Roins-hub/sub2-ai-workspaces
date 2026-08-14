@@ -1,6 +1,8 @@
 import type { ImageDetails } from '@z-image/shared'
 import type { BatchPromptMode } from './constants'
 
+export const MAX_BATCH_CONCURRENCY = 4
+
 export type BatchTaskStatus = 'queued' | 'running' | 'success' | 'error' | 'cancelled'
 
 export interface BatchGenerationTask {
@@ -33,7 +35,10 @@ export function buildBatchPrompts(
 
   const normalized = prompt.trim()
   if (!normalized) return []
-  return Array.from({ length: Math.min(8, Math.max(2, count)) }, () => normalized)
+  return Array.from(
+    { length: Math.min(MAX_BATCH_CONCURRENCY, Math.max(1, count)) },
+    () => normalized
+  )
 }
 
 export function getBatchTaskDuration(

@@ -11,7 +11,13 @@ interface HeaderProps {
   hasToken?: boolean
 }
 
-export function Header({ children, onSettingsClick, onHistoryClick, onHelpClick, hasToken }: HeaderProps) {
+export function Header({
+  children,
+  onSettingsClick,
+  onHistoryClick,
+  onHelpClick,
+  hasToken,
+}: HeaderProps) {
   const { t } = useTranslation()
 
   return (
@@ -33,7 +39,7 @@ export function Header({ children, onSettingsClick, onHistoryClick, onHelpClick,
           <button
             type="button"
             onClick={onHelpClick}
-            className="rounded-lg border border-zinc-700 p-2 text-zinc-400 transition-colors hover:border-zinc-600 hover:bg-zinc-800/50 hover:text-zinc-200"
+            className="rounded-xl border border-zinc-700 p-2 text-zinc-400 transition-colors hover:border-zinc-600 hover:bg-zinc-800/50 hover:text-zinc-200"
             aria-label="打开新手使用教程"
             title="新手使用教程"
           >
@@ -44,7 +50,7 @@ export function Header({ children, onSettingsClick, onHistoryClick, onHelpClick,
           <button
             type="button"
             onClick={onHistoryClick}
-            className="flex items-center gap-2 px-3 py-1.5 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-zinc-700 px-3 py-1.5 text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
           >
             <History className="w-4 h-4" />
             <span className="hidden sm:inline text-sm">{t('history.title')}</span>
@@ -54,7 +60,7 @@ export function Header({ children, onSettingsClick, onHistoryClick, onHelpClick,
           <button
             type="button"
             onClick={onSettingsClick}
-            className="flex items-center gap-2 px-3 py-1.5 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-zinc-700 px-3 py-1.5 text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
           >
             <Settings className="w-4 h-4" />
             <span className="hidden sm:inline text-sm">{t('common.api')}</span>

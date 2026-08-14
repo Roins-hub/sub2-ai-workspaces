@@ -133,12 +133,12 @@ export function ImageResultCard({
 
   return (
     <>
-      <Card className="bg-zinc-900/50 border-zinc-800">
+      <Card className="rounded-2xl border-zinc-800 bg-zinc-900/50">
         <CardHeader className="pb-3">
           <CardTitle className="text-zinc-500 text-sm font-normal">{t('result.title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 group">
+          <div className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
             {imageDetails ? (
               <>
                 <img

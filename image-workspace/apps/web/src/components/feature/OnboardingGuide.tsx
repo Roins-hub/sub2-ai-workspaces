@@ -1,4 +1,5 @@
 import { BookOpen, Check, KeyRound, Layers3, Lightbulb, Settings2, Upload, X } from 'lucide-react'
+import { MAX_BATCH_CONCURRENCY } from '@/lib/batchQueue'
 
 interface OnboardingGuideProps {
   open: boolean
@@ -56,13 +57,13 @@ const sections = [
     body: (
       <>
         <p>
-          切换到“批量生图”后，可以选择“同提示词多张”，一次生成 2、4、6 或 8
-          张不同结果；也可以选择“逐条提示词”，每写好一条就点“确定添加”，最多确认 8
-          条，最后统一点击批量生成。
+          切换到“批量生图”后，可以选择“同提示词多张”，使用滑块一次生成 1 到 {MAX_BATCH_CONCURRENCY}{' '}
+          张不同结果，生成几张就同时并发几个请求；也可以选择“逐条提示词”，每写好一条就点“确定添加”，最多确认
+          8 条，最后统一点击批量生成。
         </p>
         <p>
-          批量任务按 2
-          个并发执行，每张图会独立显示耗时并保存到历史记录。可以取消尚未开始的任务、单独重试失败项、下载单张图片，或使用“打包下载”保存全部成功结果。
+          “逐条提示词”可以用滑块设置每批 1 到 {MAX_BATCH_CONCURRENCY}{' '}
+          个并发，超过并发数的任务会自动进入下一批。每张图会独立显示耗时并保存到历史记录，也可以取消尚未开始的任务、单独重试失败项、下载单张图片，或使用“打包下载”保存全部成功结果。
         </p>
       </>
     ),

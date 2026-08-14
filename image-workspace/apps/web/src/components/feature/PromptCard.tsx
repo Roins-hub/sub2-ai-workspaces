@@ -30,7 +30,7 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { buildBatchPrompts } from '@/lib/batchQueue'
+import { buildBatchPrompts, MAX_BATCH_CONCURRENCY } from '@/lib/batchQueue'
 import {
   ASPECT_RATIOS,
   type AspectRatio,
@@ -67,10 +67,74 @@ interface PromptCardProps {
   onReferenceImagesChange: (files: File[]) => void
   batchPromptMode: BatchPromptMode
   batchCount: number
+  batchConcurrency: number
   batchPrompts: string[]
   setBatchPromptMode: (mode: BatchPromptMode) => void
   setBatchCount: (count: number) => void
+  setBatchConcurrency: (count: number) => void
   setBatchPrompts: (prompts: string[]) => void
+}
+
+interface BatchRangeControlProps {
+  value: number
+  label: string
+  hint: string
+  valueLabel: string
+  ariaLabel: string
+  disabled: boolean
+  onChange: (value: number) => void
+}
+
+function BatchRangeControl({
+  value,
+  label,
+  hint,
+  valueLabel,
+  ariaLabel,
+  disabled,
+  onChange,
+}: BatchRangeControlProps) {
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-zinc-200">{label}</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">{hint}</p>
+        </div>
+        <span className="shrink-0 rounded-xl bg-orange-500/15 px-3 py-1.5 font-mono text-sm font-semibold tabular-nums text-orange-300">
+          {valueLabel}
+        </span>
+      </div>
+
+      <div className="mt-5">
+        <div className="relative">
+          <Slider
+            value={[value]}
+            onValueChange={(values) => onChange(values[0])}
+            min={1}
+            max={MAX_BATCH_CONCURRENCY}
+            step={1}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            className="h-9 [&_[data-slot=slider-range]]:bg-orange-500 [&_[data-slot=slider-thumb]]:relative [&_[data-slot=slider-thumb]]:z-30 [&_[data-slot=slider-thumb]]:size-7 [&_[data-slot=slider-thumb]]:border-4 [&_[data-slot=slider-thumb]]:border-zinc-100 [&_[data-slot=slider-thumb]]:bg-zinc-200 [&_[data-slot=slider-thumb]]:shadow-[0_4px_14px_rgba(0,0,0,0.35)] [&_[data-slot=slider-thumb]]:transition-transform [&_[data-slot=slider-thumb]]:duration-200 [&_[data-slot=slider-thumb]]:hover:scale-105 [&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-track]]:bg-zinc-700"
+          />
+          <div className="pointer-events-none absolute inset-x-1 top-1/2 z-20 flex -translate-y-1/2 justify-between">
+            {Array.from({ length: MAX_BATCH_CONCURRENCY }, (_, index) => index + 1).map((step) => (
+              <span
+                key={step}
+                className={`size-1.5 rounded-full ${step <= value ? 'bg-white/45' : 'bg-zinc-500'}`}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="mt-1 flex justify-between px-0.5 font-mono text-[11px] tabular-nums text-zinc-500">
+          {Array.from({ length: MAX_BATCH_CONCURRENCY }, (_, index) => (
+            <span key={index + 1}>{index + 1}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function ReferenceImagePreview({ file }: { file: File }) {
@@ -113,9 +177,11 @@ export function PromptCard({
   onReferenceImagesChange,
   batchPromptMode,
   batchCount,
+  batchConcurrency,
   batchPrompts,
   setBatchPromptMode,
   setBatchCount,
+  setBatchConcurrency,
   setBatchPrompts,
 }: PromptCardProps) {
   const { t } = useTranslation()
@@ -124,6 +190,7 @@ export function PromptCard({
   const isProcessing = isOptimizing || isTranslating
   const isMultiPromptBatch = generationMode === 'batch' && batchPromptMode === 'lines'
   const batchTaskCount = buildBatchPrompts(batchPromptMode, prompt, batchPrompts, batchCount).length
+  const activeBatchConcurrency = batchPromptMode === 'repeat' ? batchCount : batchConcurrency
   const canConfirmBatchPrompt =
     batchPromptDraft.trim().length > 0 &&
     (editingBatchPrompt !== null || batchPrompts.length < 8) &&
@@ -159,7 +226,7 @@ export function PromptCard({
   }
 
   return (
-    <Card className="bg-zinc-900/50 border-zinc-800">
+    <Card className="rounded-2xl border-zinc-800 bg-zinc-900/50">
       <CardContent className="p-5 space-y-4">
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -172,7 +239,7 @@ export function PromptCard({
                   size="sm"
                   onClick={onTranslate}
                   disabled={isProcessing || !prompt.trim()}
-                  className="h-7 px-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10"
+                  className="h-7 rounded-lg px-2 text-zinc-400 hover:bg-blue-500/10 hover:text-blue-400"
                   title={t('prompt.translateToEnglish')}
                 >
                   {isTranslating ? (
@@ -190,7 +257,7 @@ export function PromptCard({
                   size="sm"
                   onClick={onOptimize}
                   disabled={isProcessing || !prompt.trim()}
-                  className="h-7 px-2 text-zinc-400 hover:bg-orange-500/10 hover:text-orange-300"
+                  className="h-7 rounded-lg px-2 text-zinc-400 hover:bg-orange-500/10 hover:text-orange-300"
                   title={t('prompt.optimizePrompt')}
                 >
                   {isOptimizing ? (
@@ -212,7 +279,7 @@ export function PromptCard({
             placeholder={
               isMultiPromptBatch ? t('batch.promptDraftPlaceholder') : t('prompt.placeholder')
             }
-            className="bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 resize-none overflow-y-auto max-h-48"
+            className="max-h-48 resize-none overflow-y-auto rounded-xl border-zinc-800 bg-zinc-950 text-zinc-100 placeholder:text-zinc-600"
           />
           {isMultiPromptBatch && (
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -225,7 +292,7 @@ export function PromptCard({
                     type="button"
                     onClick={resetBatchPromptEditor}
                     disabled={loading}
-                    className="flex h-8 items-center gap-1.5 border border-zinc-700 px-2.5 text-xs text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-40"
+                    className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 text-xs text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-40"
                   >
                     <X className="h-3.5 w-3.5" /> {t('common.cancel')}
                   </button>
@@ -234,7 +301,7 @@ export function PromptCard({
                   type="button"
                   onClick={confirmBatchPrompt}
                   disabled={!canConfirmBatchPrompt}
-                  className="flex h-8 items-center gap-1.5 border border-orange-500 bg-orange-500/10 px-3 text-xs text-orange-300 transition-colors hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-transparent disabled:text-zinc-600"
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-500/10 px-3 text-xs text-orange-300 transition-colors hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-transparent disabled:text-zinc-600"
                 >
                   {editingBatchPrompt === null ? (
                     <Plus className="h-3.5 w-3.5" />
@@ -258,8 +325,8 @@ export function PromptCard({
                 onClick={() => setGenerationMode('generate')}
                 className={
                   generationMode === 'generate'
-                    ? 'border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
-                    : 'border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
+                    ? 'rounded-xl border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
+                    : 'rounded-xl border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
                 <Type className="mr-1.5 h-3.5 w-3.5" />
@@ -272,8 +339,8 @@ export function PromptCard({
                 onClick={() => setGenerationMode('edit')}
                 className={
                   generationMode === 'edit'
-                    ? 'border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
-                    : 'border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
+                    ? 'rounded-xl border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
+                    : 'rounded-xl border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
                 <Images className="mr-1.5 h-3.5 w-3.5" />
@@ -286,8 +353,8 @@ export function PromptCard({
                 onClick={() => setGenerationMode('batch')}
                 className={
                   generationMode === 'batch'
-                    ? 'border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
-                    : 'border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
+                    ? 'rounded-xl border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
+                    : 'rounded-xl border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
                 <Layers3 className="mr-1.5 h-3.5 w-3.5" />
@@ -295,18 +362,18 @@ export function PromptCard({
               </Button>
             </div>
             {generationMode === 'batch' && (
-              <div className="space-y-3 border-l-2 border-orange-500/60 bg-zinc-950/55 px-3 py-3">
-                <div className="grid grid-cols-2 gap-1 bg-zinc-900 p-1">
+              <div className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950/55 p-3 sm:p-4">
+                <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-zinc-900 p-1.5">
                   <button
                     type="button"
                     onClick={() => {
                       setBatchPromptMode('repeat')
                       resetBatchPromptEditor()
                     }}
-                    className={`flex h-8 items-center justify-center gap-1.5 px-2 text-xs transition-colors ${
+                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl px-2 text-xs transition-all duration-200 active:scale-[0.98] ${
                       batchPromptMode === 'repeat'
-                        ? 'bg-zinc-700 text-white'
-                        : 'text-zinc-500 hover:text-zinc-200'
+                        ? 'bg-zinc-700 text-white shadow-sm'
+                        : 'text-zinc-500 hover:bg-zinc-800/70 hover:text-zinc-200'
                     }`}
                   >
                     <Copy className="h-3.5 w-3.5" /> {t('batch.repeatMode')}
@@ -314,10 +381,10 @@ export function PromptCard({
                   <button
                     type="button"
                     onClick={() => setBatchPromptMode('lines')}
-                    className={`flex h-8 items-center justify-center gap-1.5 px-2 text-xs transition-colors ${
+                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl px-2 text-xs transition-all duration-200 active:scale-[0.98] ${
                       batchPromptMode === 'lines'
-                        ? 'bg-zinc-700 text-white'
-                        : 'text-zinc-500 hover:text-zinc-200'
+                        ? 'bg-zinc-700 text-white shadow-sm'
+                        : 'text-zinc-500 hover:bg-zinc-800/70 hover:text-zinc-200'
                     }`}
                   >
                     <List className="h-3.5 w-3.5" /> {t('batch.linesMode')}
@@ -325,27 +392,26 @@ export function PromptCard({
                 </div>
 
                 {batchPromptMode === 'repeat' ? (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs text-zinc-400">{t('batch.quantity')}</span>
-                    <div className="flex gap-1">
-                      {[2, 4, 6, 8].map((count) => (
-                        <button
-                          type="button"
-                          key={count}
-                          onClick={() => setBatchCount(count)}
-                          className={`h-8 min-w-9 border px-2 font-mono text-xs transition-colors ${
-                            batchCount === count
-                              ? 'border-orange-500 bg-orange-500/15 text-orange-300'
-                              : 'border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-200'
-                          }`}
-                        >
-                          {count}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <BatchRangeControl
+                    value={batchCount}
+                    onChange={setBatchCount}
+                    label={t('batch.repeatControl')}
+                    hint={t('batch.repeatControlHint', { count: batchCount })}
+                    valueLabel={t('batch.imageCount', { count: batchCount })}
+                    ariaLabel={t('batch.repeatControl')}
+                    disabled={loading}
+                  />
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    <BatchRangeControl
+                      value={batchConcurrency}
+                      onChange={setBatchConcurrency}
+                      label={t('batch.linesConcurrency')}
+                      hint={t('batch.linesConcurrencyHint', { count: batchConcurrency })}
+                      valueLabel={t('batch.concurrentCount', { count: batchConcurrency })}
+                      ariaLabel={t('batch.linesConcurrency')}
+                      disabled={loading}
+                    />
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-zinc-400">{t('batch.confirmedPrompts')}</span>
                       <span className="font-mono text-[11px] text-zinc-600">
@@ -353,7 +419,7 @@ export function PromptCard({
                       </span>
                     </div>
                     {batchPrompts.length === 0 ? (
-                      <div className="border border-dashed border-zinc-800 px-3 py-4 text-center text-xs text-zinc-600">
+                      <div className="rounded-xl border border-dashed border-zinc-800 px-3 py-5 text-center text-xs text-zinc-600">
                         {t('batch.noConfirmedPrompts')}
                       </div>
                     ) : (
@@ -361,7 +427,7 @@ export function PromptCard({
                         {batchPrompts.map((item, index) => (
                           <div
                             key={`${index}-${item}`}
-                            className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-2 border px-2 py-2.5 transition-colors ${
+                            className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-2 rounded-xl border px-2 py-2.5 transition-colors ${
                               editingBatchPrompt === index
                                 ? 'border-orange-500/70 bg-orange-500/5'
                                 : 'border-zinc-800 bg-zinc-900/60'
@@ -378,7 +444,7 @@ export function PromptCard({
                                 type="button"
                                 onClick={() => editBatchPrompt(index)}
                                 disabled={loading}
-                                className="flex size-7 items-center justify-center text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-40"
+                                className="flex size-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-40"
                                 title={t('common.edit')}
                                 aria-label={`${t('common.edit')} ${index + 1}`}
                               >
@@ -388,7 +454,7 @@ export function PromptCard({
                                 type="button"
                                 onClick={() => removeBatchPrompt(index)}
                                 disabled={loading}
-                                className="flex size-7 items-center justify-center text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                                className="flex size-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
                                 title={t('common.delete')}
                                 aria-label={`${t('common.delete')} ${index + 1}`}
                               >
@@ -402,21 +468,23 @@ export function PromptCard({
                   </div>
                 )}
 
-                <div className="flex items-center justify-between gap-3 border-t border-zinc-800 pt-2 text-[11px]">
+                <div className="flex items-center justify-between gap-3 border-t border-zinc-800 px-1 pt-3 text-[11px]">
                   <span className="text-zinc-500">
                     {t('batch.requestSummary', { count: batchTaskCount })}
                   </span>
-                  <span className="font-mono text-orange-400">{t('batch.concurrency')}</span>
+                  <span className="font-mono text-orange-400">
+                    {t('batch.concurrency', { count: activeBatchConcurrency })}
+                  </span>
                 </div>
               </div>
             )}
             {generationMode === 'edit' && (
-              <div className="rounded-md border border-dashed border-zinc-700 bg-zinc-950/70 p-3">
+              <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/70 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <Label className="text-zinc-300 text-xs">
                     参考图（最多 4 张，每张不超过 10MB）
                   </Label>
-                  <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
+                  <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800">
                     <FileImage className="h-3.5 w-3.5" /> 上传
                     <input
                       type="file"
@@ -435,13 +503,13 @@ export function PromptCard({
                     {referenceImages.map((file, index) => (
                       <div
                         key={`${file.name}-${file.lastModified}-${index}`}
-                        className="group relative aspect-square overflow-hidden rounded border border-zinc-800 bg-zinc-900"
+                        className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900"
                       >
                         <ReferenceImagePreview file={file} />
                         <button
                           type="button"
                           aria-label="删除参考图"
-                          className="absolute right-1 top-1 hidden rounded bg-black/70 p-1 text-white group-hover:block"
+                          className="absolute right-1 top-1 hidden rounded-lg bg-black/70 p-1 text-white group-hover:block"
                           onClick={() =>
                             onReferenceImagesChange(
                               referenceImages.filter((_, itemIndex) => itemIndex !== index)
@@ -530,7 +598,7 @@ export function PromptCard({
                   type="button"
                   key={ratio.label}
                   onClick={() => handleRatioSelect(ratio)}
-                  className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg border transition-all ${
+                  className={`flex flex-col items-center gap-1 rounded-xl border px-4 py-2 transition-all ${
                     isSelected
                       ? 'bg-orange-500/10 border-orange-500 text-orange-400'
                       : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
@@ -594,7 +662,7 @@ export function PromptCard({
         <Button
           onClick={handleGenerate}
           disabled={loading || (generationMode === 'batch' && batchTaskCount === 0)}
-          className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold h-12 text-base disabled:opacity-50"
+          className="h-12 w-full rounded-xl bg-orange-500 text-base font-semibold text-white hover:bg-orange-600 active:scale-[0.99] disabled:opacity-50"
         >
           {loading ? (
             <>

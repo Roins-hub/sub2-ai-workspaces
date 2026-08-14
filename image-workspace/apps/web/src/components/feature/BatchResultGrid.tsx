@@ -78,7 +78,7 @@ export function BatchResultGrid({
 
   return (
     <>
-      <Card className="border-zinc-800 bg-zinc-900/50">
+      <Card className="rounded-2xl border-zinc-800 bg-zinc-900/50">
         <CardHeader className="space-y-3 pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -97,7 +97,7 @@ export function BatchResultGrid({
                   <button
                     type="button"
                     onClick={onCancel}
-                    className="flex h-8 items-center gap-1.5 border border-zinc-700 px-2.5 text-xs text-zinc-400 transition-colors hover:border-red-500/60 hover:text-red-300"
+                    className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 text-xs text-zinc-400 transition-colors hover:border-red-500/60 hover:text-red-300"
                   >
                     <Square className="h-3 w-3 fill-current" /> {t('batch.cancelRemaining')}
                   </button>
@@ -106,7 +106,7 @@ export function BatchResultGrid({
                   type="button"
                   onClick={onDownloadAll}
                   disabled={successes === 0 || downloading}
-                  className="flex h-8 items-center gap-1.5 border border-zinc-700 px-2.5 text-xs text-zinc-300 transition-colors hover:border-orange-500/60 hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 text-xs text-zinc-300 transition-colors hover:border-orange-500/60 hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {downloading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -119,7 +119,7 @@ export function BatchResultGrid({
                   type="button"
                   onClick={onClear}
                   disabled={loading}
-                  className="flex size-8 items-center justify-center border border-zinc-700 text-zinc-500 transition-colors hover:border-zinc-500 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex size-8 items-center justify-center rounded-lg border border-zinc-700 text-zinc-500 transition-colors hover:border-zinc-500 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
                   title={t('batch.clearResults')}
                   aria-label={t('batch.clearResults')}
                 >
@@ -135,7 +135,7 @@ export function BatchResultGrid({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progress}
-              className="h-1 overflow-hidden bg-zinc-800"
+              className="h-1.5 overflow-hidden rounded-full bg-zinc-800"
             >
               <motion.div
                 className="h-full bg-orange-500"
@@ -149,7 +149,7 @@ export function BatchResultGrid({
 
         <CardContent>
           {tasks.length === 0 ? (
-            <div className="flex aspect-square flex-col items-center justify-center border border-dashed border-zinc-800 text-zinc-600">
+            <div className="flex aspect-square flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 text-zinc-600">
               <LayersPlaceholder />
               <span className="mt-3 max-w-48 text-center text-sm">{t('batch.empty')}</span>
             </div>
@@ -165,7 +165,7 @@ export function BatchResultGrid({
                       layout
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="group min-w-0 overflow-hidden border border-zinc-800 bg-zinc-950"
+                      className="group min-w-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950"
                     >
                       <div className="relative aspect-square overflow-hidden bg-zinc-900">
                         {task.status === 'success' && task.details ? (
@@ -207,7 +207,7 @@ export function BatchResultGrid({
                                 type="button"
                                 onClick={() => onRetry(task.id)}
                                 disabled={loading}
-                                className="mt-3 flex h-7 items-center gap-1 border border-zinc-700 px-2 text-[11px] text-zinc-300 transition-colors hover:border-orange-500 hover:text-orange-300 disabled:opacity-40"
+                                className="mt-3 flex h-7 items-center gap-1 rounded-lg border border-zinc-700 px-2 text-[11px] text-zinc-300 transition-colors hover:border-orange-500 hover:text-orange-300 disabled:opacity-40"
                               >
                                 <RotateCcw className="h-3 w-3" /> {t('batch.retry')}
                               </button>
@@ -219,7 +219,7 @@ export function BatchResultGrid({
                           <button
                             type="button"
                             onClick={() => onDownload(task.id)}
-                            className="absolute bottom-2 right-2 flex size-8 items-center justify-center bg-black/70 text-white/80 opacity-100 backdrop-blur-sm transition hover:text-white md:opacity-0 md:group-hover:opacity-100"
+                            className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-lg bg-black/70 text-white/80 opacity-100 backdrop-blur-sm transition hover:text-white md:opacity-0 md:group-hover:opacity-100"
                             title={t('common.download')}
                             aria-label={`${t('common.download')} ${task.index + 1}`}
                           >
@@ -278,7 +278,7 @@ export function BatchResultGrid({
             <button
               type="button"
               onClick={() => setPreviewUrl(null)}
-              className="absolute right-4 top-4 flex size-10 items-center justify-center bg-white/10 text-white hover:bg-white/20"
+              className="absolute right-4 top-4 flex size-10 items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -289,7 +289,7 @@ export function BatchResultGrid({
               exit={{ opacity: 0, scale: 0.96 }}
               src={previewUrl}
               alt="Batch preview"
-              className="max-h-[88vh] max-w-[92vw] object-contain"
+              className="max-h-[88vh] max-w-[92vw] rounded-2xl object-contain"
               onClick={(event) => event.stopPropagation()}
             />
           </motion.div>

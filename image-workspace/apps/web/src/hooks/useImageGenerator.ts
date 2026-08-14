@@ -23,7 +23,12 @@ import {
   getFullImageModelId,
   openai,
 } from '@/lib/api'
-import { type BatchGenerationTask, buildBatchPrompts, runWithConcurrency } from '@/lib/batchQueue'
+import {
+  type BatchGenerationTask,
+  buildBatchPrompts,
+  MAX_BATCH_CONCURRENCY,
+  runWithConcurrency,
+} from '@/lib/batchQueue'
 import {
   ASPECT_RATIOS,
   type BatchPromptMode,
@@ -83,6 +88,7 @@ export function useImageGenerator() {
   const [referenceImages, setReferenceImages] = useState<File[]>([])
   const [batchPromptMode, setBatchPromptMode] = useState<BatchPromptMode>('repeat')
   const [batchCount, setBatchCount] = useState(4)
+  const [batchConcurrency, setBatchConcurrency] = useState(MAX_BATCH_CONCURRENCY)
   const [batchPrompts, setBatchPrompts] = useState<string[]>([])
   const [batchTasks, setBatchTasks] = useState<BatchGenerationTask[]>([])
   const [batchDownloading, setBatchDownloading] = useState(false)
@@ -485,9 +491,13 @@ export function useImageGenerator() {
 
     let successCount = 0
     let failureCount = 0
+    const concurrency = Math.min(
+      MAX_BATCH_CONCURRENCY,
+      batchPromptMode === 'repeat' ? batchCount : batchConcurrency
+    )
     await runWithConcurrency(
       tasks,
-      2,
+      concurrency,
       () => batchCancelledRef.current || batchRunIdRef.current !== runId,
       async (task) => {
         const startedAt = Date.now()
@@ -542,6 +552,7 @@ export function useImageGenerator() {
     prompt,
     batchPrompts,
     batchCount,
+    batchConcurrency,
     provider,
     currentToken,
     releaseBatchObjectUrls,
@@ -1003,6 +1014,7 @@ export function useImageGenerator() {
     referenceImages,
     batchPromptMode,
     batchCount,
+    batchConcurrency,
     batchPrompts,
     batchTasks,
     batchDownloading,
@@ -1031,6 +1043,7 @@ export function useImageGenerator() {
     handleReferenceImages,
     setBatchPromptMode,
     setBatchCount,
+    setBatchConcurrency,
     setBatchPrompts,
     setPrompt,
     setNegativePrompt,
