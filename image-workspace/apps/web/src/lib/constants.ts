@@ -81,7 +81,8 @@ export interface ImageRelaySettings {
   outputFormat: 'png' | 'jpeg' | 'webp'
 }
 
-export type ImageGenerationMode = 'generate' | 'edit'
+export type ImageGenerationMode = 'generate' | 'edit' | 'batch'
+export type BatchPromptMode = 'repeat' | 'lines'
 
 export const IMAGE_RELAY_PRESETS = [
   { value: 'https://sub2.hhlai.xyz', label: 'HHL AI' },

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BatchResultGrid } from '@/components/feature/BatchResultGrid'
 import { Header } from '@/components/feature/Header'
 import { ImageHistory } from '@/components/feature/ImageHistory'
 import { ImageResultCard } from '@/components/feature/ImageResultCard'
@@ -27,6 +28,11 @@ export default function ImageGenerator() {
     relaySettings,
     generationMode,
     referenceImages,
+    batchPromptMode,
+    batchCount,
+    batchPrompts,
+    batchTasks,
+    batchDownloading,
     prompt,
     negativePrompt,
     width,
@@ -47,6 +53,9 @@ export default function ImageGenerator() {
     setRelaySettings,
     setGenerationMode,
     handleReferenceImages,
+    setBatchPromptMode,
+    setBatchCount,
+    setBatchPrompts,
     setPrompt,
     setNegativePrompt,
     setWidth,
@@ -68,6 +77,11 @@ export default function ImageGenerator() {
     handleDownload,
     handleDelete,
     handleGenerate,
+    cancelBatch,
+    retryBatchTask,
+    downloadBatchTask,
+    downloadBatchAsZip,
+    clearBatchResults,
     handleLoadFromHistory,
     handleOptimize,
     handleTranslate,
@@ -115,25 +129,44 @@ export default function ImageGenerator() {
                 referenceImages={referenceImages}
                 setGenerationMode={setGenerationMode}
                 onReferenceImagesChange={handleReferenceImages}
+                batchPromptMode={batchPromptMode}
+                batchCount={batchCount}
+                batchPrompts={batchPrompts}
+                setBatchPromptMode={setBatchPromptMode}
+                setBatchCount={setBatchCount}
+                setBatchPrompts={setBatchPrompts}
               />
             </div>
 
             {/* Right Panel - Output */}
             <div className="lg:col-span-2 space-y-4">
-              <ImageResultCard
-                imageDetails={imageDetails}
-                loading={loading}
-                elapsed={elapsed}
-                showInfo={showInfo}
-                isBlurred={isBlurred}
-                setShowInfo={setShowInfo}
-                setIsBlurred={setIsBlurred}
-                handleDownload={handleDownload}
-                handleDelete={handleDelete}
-                onRegenerate={handleGenerate}
-                historyId={historyId}
-                generatedAt={generatedAt}
-              />
+              {generationMode === 'batch' ? (
+                <BatchResultGrid
+                  tasks={batchTasks}
+                  loading={loading}
+                  downloading={batchDownloading}
+                  onCancel={cancelBatch}
+                  onRetry={retryBatchTask}
+                  onDownload={downloadBatchTask}
+                  onDownloadAll={downloadBatchAsZip}
+                  onClear={clearBatchResults}
+                />
+              ) : (
+                <ImageResultCard
+                  imageDetails={imageDetails}
+                  loading={loading}
+                  elapsed={elapsed}
+                  showInfo={showInfo}
+                  isBlurred={isBlurred}
+                  setShowInfo={setShowInfo}
+                  setIsBlurred={setIsBlurred}
+                  handleDownload={handleDownload}
+                  handleDelete={handleDelete}
+                  onRegenerate={handleGenerate}
+                  historyId={historyId}
+                  generatedAt={generatedAt}
+                />
+              )}
 
               <StatusCard status={status} />
             </div>
