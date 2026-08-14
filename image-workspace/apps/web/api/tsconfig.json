@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": ["ESNext", "DOM"],
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["./**/*", "../../api/src/**/*"],
+  "exclude": ["node_modules"]
+}

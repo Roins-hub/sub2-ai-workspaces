@@ -1,0 +1,29 @@
+name: zenith-sub2
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 8787
+      IMAGE_PROXY_ALLOW_ANY_HOST: "true"
+      IMAGE_PROXY_ALLOWED_HOSTS: sub2.hhlai.xyz
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8787/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "127.0.0.1:13000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

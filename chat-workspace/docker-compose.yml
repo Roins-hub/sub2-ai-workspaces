@@ -1,0 +1,12 @@
+services:
+  chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sub2image-chat
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:13002:3000"
+    init: true
+    security_opt:
+      - no-new-privileges:true

@@ -1,0 +1,3 @@
+# Cloudflare Pages Configuration
+name = "z-image-web"
+pages_build_output_dir = "apps/web/dist"

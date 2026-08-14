@@ -1,0 +1,94 @@
+name: zenith-sub2
+
+# Zenith Sub2 - isolated production deployment
+#
+# Full-stack local development with Docker
+#
+# Usage:
+#   docker compose up        # Start all services
+#   docker compose up api    # Start API only
+#   docker compose up web    # Start web only
+#   docker compose down      # Stop all services
+
+services:
+  # === API Service ===
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:18787:8787"
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+      # Custom relays are allowed when they resolve to public addresses.
+      # Private, loopback and link-local addresses remain blocked in the proxy.
+      - IMAGE_PROXY_ALLOW_ANY_HOST=true
+      - IMAGE_PROXY_ALLOWED_HOSTS=sub2.hhlai.xyz
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8787/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # === Web Service (for production preview) ===
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "127.0.0.1:13000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - default
+      - caddy-network
+    restart: unless-stopped
+
+  # === Development Services ===
+  # Use these for local development with hot reload
+  api-dev:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/packages/shared/node_modules
+    ports:
+      - "8787:8787"
+    environment:
+      - NODE_ENV=development
+      - PORT=8787
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+    command: sh -c "corepack enable && pnpm install && pnpm dev:api"
+    profiles:
+      - dev
+
+  web-dev:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/packages/shared/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8787
+    command: sh -c "corepack enable && pnpm install && pnpm dev:web"
+    depends_on:
+      - api-dev
+    profiles:
+      - dev
+
+networks:
+  caddy-network:
+    external: true
+    name: new-api_new-api-network

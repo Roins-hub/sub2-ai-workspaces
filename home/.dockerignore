@@ -1,0 +1,4 @@
+.git
+output
+.playwright-cli
+*.log

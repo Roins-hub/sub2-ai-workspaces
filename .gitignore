@@ -1,0 +1,29 @@
+# Dependencies and build outputs
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/.turbo/
+**/coverage/
+
+# Local test and deployment artifacts
+**/.playwright-cli/
+**/output/
+**/*.log
+**/*.bak
+**/*.backup
+
+# Credentials and local environment
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+**/*.pem
+**/*.key
+
+# Editors and operating systems
+**/.DS_Store
+**/Thumbs.db
+**/.idea/
+**/.vscode/
+

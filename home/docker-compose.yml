@@ -1,0 +1,7 @@
+services:
+  home:
+    build: .
+    container_name: sub2image-home
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:13001:80"
