@@ -8,6 +8,8 @@ export interface BatchGenerationTask {
   index: number
   prompt: string
   status: BatchTaskStatus
+  startedAt?: number
+  finishedAt?: number
   details?: ImageDetails
   historyId?: string
   blobId?: string
@@ -19,13 +21,12 @@ export interface BatchGenerationTask {
 export function buildBatchPrompts(
   mode: BatchPromptMode,
   prompt: string,
-  lines: string,
+  prompts: string[],
   count: number
 ): string[] {
   if (mode === 'lines') {
-    return lines
-      .split(/\r?\n/)
-      .map((line) => line.trim())
+    return prompts
+      .map((item) => item.trim())
       .filter(Boolean)
       .slice(0, 8)
   }
@@ -33,6 +34,16 @@ export function buildBatchPrompts(
   const normalized = prompt.trim()
   if (!normalized) return []
   return Array.from({ length: Math.min(8, Math.max(2, count)) }, () => normalized)
+}
+
+export function getBatchTaskDuration(
+  task: Pick<BatchGenerationTask, 'startedAt' | 'finishedAt'>,
+  now = Date.now()
+): string | null {
+  if (task.startedAt === undefined) return null
+  const finishedAt = task.finishedAt ?? now
+  const durationMs = Math.max(0, finishedAt - task.startedAt)
+  return `${(durationMs / 1000).toFixed(1)}s`
 }
 
 export async function runWithConcurrency<T>(

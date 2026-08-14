@@ -1,14 +1,20 @@
 import {
+  Check,
   Copy,
   FileImage,
   Globe,
+  Images,
   Layers3,
   List,
   Loader2,
+  Pencil,
+  Plus,
   RotateCcw,
   Sparkles,
   Trash2,
+  Type,
   Wand2,
+  X,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -61,10 +67,10 @@ interface PromptCardProps {
   onReferenceImagesChange: (files: File[]) => void
   batchPromptMode: BatchPromptMode
   batchCount: number
-  batchPrompts: string
+  batchPrompts: string[]
   setBatchPromptMode: (mode: BatchPromptMode) => void
   setBatchCount: (count: number) => void
-  setBatchPrompts: (prompts: string) => void
+  setBatchPrompts: (prompts: string[]) => void
 }
 
 function ReferenceImagePreview({ file }: { file: File }) {
@@ -113,9 +119,44 @@ export function PromptCard({
   setBatchPrompts,
 }: PromptCardProps) {
   const { t } = useTranslation()
+  const [batchPromptDraft, setBatchPromptDraft] = useState('')
+  const [editingBatchPrompt, setEditingBatchPrompt] = useState<number | null>(null)
   const isProcessing = isOptimizing || isTranslating
   const isMultiPromptBatch = generationMode === 'batch' && batchPromptMode === 'lines'
   const batchTaskCount = buildBatchPrompts(batchPromptMode, prompt, batchPrompts, batchCount).length
+  const canConfirmBatchPrompt =
+    batchPromptDraft.trim().length > 0 &&
+    (editingBatchPrompt !== null || batchPrompts.length < 8) &&
+    !loading
+
+  const resetBatchPromptEditor = () => {
+    setBatchPromptDraft('')
+    setEditingBatchPrompt(null)
+  }
+
+  const confirmBatchPrompt = () => {
+    const normalized = batchPromptDraft.trim()
+    if (!normalized || !canConfirmBatchPrompt) return
+
+    if (editingBatchPrompt === null) {
+      setBatchPrompts([...batchPrompts, normalized])
+    } else {
+      setBatchPrompts(
+        batchPrompts.map((item, index) => (index === editingBatchPrompt ? normalized : item))
+      )
+    }
+    resetBatchPromptEditor()
+  }
+
+  const editBatchPrompt = (index: number) => {
+    setBatchPromptDraft(batchPrompts[index])
+    setEditingBatchPrompt(index)
+  }
+
+  const removeBatchPrompt = (index: number) => {
+    setBatchPrompts(batchPrompts.filter((_, itemIndex) => itemIndex !== index))
+    resetBatchPromptEditor()
+  }
 
   return (
     <Card className="bg-zinc-900/50 border-zinc-800">
@@ -149,7 +190,7 @@ export function PromptCard({
                   size="sm"
                   onClick={onOptimize}
                   disabled={isProcessing || !prompt.trim()}
-                  className="h-7 px-2 text-zinc-400 hover:text-purple-400 hover:bg-purple-500/10"
+                  className="h-7 px-2 text-zinc-400 hover:bg-orange-500/10 hover:text-orange-300"
                   title={t('prompt.optimizePrompt')}
                 >
                   {isOptimizing ? (
@@ -163,14 +204,48 @@ export function PromptCard({
             </div>
           </div>
           <Textarea
-            rows={8}
-            value={isMultiPromptBatch ? batchPrompts : prompt}
+            rows={isMultiPromptBatch ? 4 : 8}
+            value={isMultiPromptBatch ? batchPromptDraft : prompt}
             onChange={(e) =>
-              isMultiPromptBatch ? setBatchPrompts(e.target.value) : setPrompt(e.target.value)
+              isMultiPromptBatch ? setBatchPromptDraft(e.target.value) : setPrompt(e.target.value)
             }
-            placeholder={isMultiPromptBatch ? t('batch.linesPlaceholder') : t('prompt.placeholder')}
+            placeholder={
+              isMultiPromptBatch ? t('batch.promptDraftPlaceholder') : t('prompt.placeholder')
+            }
             className="bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 resize-none overflow-y-auto max-h-48"
           />
+          {isMultiPromptBatch && (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="font-mono text-[11px] text-zinc-500">
+                {t('batch.confirmedCount', { count: batchPrompts.length })}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {editingBatchPrompt !== null && (
+                  <button
+                    type="button"
+                    onClick={resetBatchPromptEditor}
+                    disabled={loading}
+                    className="flex h-8 items-center gap-1.5 border border-zinc-700 px-2.5 text-xs text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200 disabled:opacity-40"
+                  >
+                    <X className="h-3.5 w-3.5" /> {t('common.cancel')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={confirmBatchPrompt}
+                  disabled={!canConfirmBatchPrompt}
+                  className="flex h-8 items-center gap-1.5 border border-orange-500 bg-orange-500/10 px-3 text-xs text-orange-300 transition-colors hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-transparent disabled:text-zinc-600"
+                >
+                  {editingBatchPrompt === null ? (
+                    <Plus className="h-3.5 w-3.5" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  {editingBatchPrompt === null ? t('batch.confirmPrompt') : t('batch.savePrompt')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {isCustomProvider && (
@@ -187,6 +262,7 @@ export function PromptCard({
                     : 'border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
+                <Type className="mr-1.5 h-3.5 w-3.5" />
                 文字生图
               </Button>
               <Button
@@ -200,6 +276,7 @@ export function PromptCard({
                     : 'border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
+                <Images className="mr-1.5 h-3.5 w-3.5" />
                 图生图 / 多参考图
               </Button>
               <Button
@@ -222,7 +299,10 @@ export function PromptCard({
                 <div className="grid grid-cols-2 gap-1 bg-zinc-900 p-1">
                   <button
                     type="button"
-                    onClick={() => setBatchPromptMode('repeat')}
+                    onClick={() => {
+                      setBatchPromptMode('repeat')
+                      resetBatchPromptEditor()
+                    }}
                     className={`flex h-8 items-center justify-center gap-1.5 px-2 text-xs transition-colors ${
                       batchPromptMode === 'repeat'
                         ? 'bg-zinc-700 text-white'
@@ -265,7 +345,61 @@ export function PromptCard({
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs leading-relaxed text-zinc-500">{t('batch.linesHint')}</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-zinc-400">{t('batch.confirmedPrompts')}</span>
+                      <span className="font-mono text-[11px] text-zinc-600">
+                        {batchPrompts.length}/8
+                      </span>
+                    </div>
+                    {batchPrompts.length === 0 ? (
+                      <div className="border border-dashed border-zinc-800 px-3 py-4 text-center text-xs text-zinc-600">
+                        {t('batch.noConfirmedPrompts')}
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {batchPrompts.map((item, index) => (
+                          <div
+                            key={`${index}-${item}`}
+                            className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-2 border px-2 py-2.5 transition-colors ${
+                              editingBatchPrompt === index
+                                ? 'border-orange-500/70 bg-orange-500/5'
+                                : 'border-zinc-800 bg-zinc-900/60'
+                            }`}
+                          >
+                            <span className="pt-0.5 font-mono text-[10px] text-orange-400">
+                              #{String(index + 1).padStart(2, '0')}
+                            </span>
+                            <p className="min-w-0 whitespace-pre-wrap break-words text-xs leading-relaxed text-zinc-300">
+                              {item}
+                            </p>
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => editBatchPrompt(index)}
+                                disabled={loading}
+                                className="flex size-7 items-center justify-center text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-40"
+                                title={t('common.edit')}
+                                aria-label={`${t('common.edit')} ${index + 1}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeBatchPrompt(index)}
+                                disabled={loading}
+                                className="flex size-7 items-center justify-center text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:opacity-40"
+                                title={t('common.delete')}
+                                aria-label={`${t('common.delete')} ${index + 1}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <div className="flex items-center justify-between gap-3 border-t border-zinc-800 pt-2 text-[11px]">

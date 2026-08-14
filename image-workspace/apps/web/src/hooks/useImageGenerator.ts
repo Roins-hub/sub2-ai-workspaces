@@ -83,7 +83,7 @@ export function useImageGenerator() {
   const [referenceImages, setReferenceImages] = useState<File[]>([])
   const [batchPromptMode, setBatchPromptMode] = useState<BatchPromptMode>('repeat')
   const [batchCount, setBatchCount] = useState(4)
-  const [batchPrompts, setBatchPrompts] = useState('')
+  const [batchPrompts, setBatchPrompts] = useState<string[]>([])
   const [batchTasks, setBatchTasks] = useState<BatchGenerationTask[]>([])
   const [batchDownloading, setBatchDownloading] = useState(false)
   const [prompt, setPrompt] = useState(() => loadSettings().prompt ?? DEFAULT_PROMPT)
@@ -459,7 +459,7 @@ export function useImageGenerator() {
   const handleBatchGenerate = useCallback(async () => {
     const prompts = buildBatchPrompts(batchPromptMode, prompt, batchPrompts, batchCount)
     if (prompts.length === 0) {
-      toast.error(batchPromptMode === 'lines' ? '请至少填写一行提示词' : '请先填写提示词')
+      toast.error(batchPromptMode === 'lines' ? '请至少确认一条提示词' : '请先填写提示词')
       return
     }
 
@@ -490,7 +490,13 @@ export function useImageGenerator() {
       2,
       () => batchCancelledRef.current || batchRunIdRef.current !== runId,
       async (task) => {
-        updateBatchTask(task.id, { status: 'running', error: undefined })
+        const startedAt = Date.now()
+        updateBatchTask(task.id, {
+          status: 'running',
+          error: undefined,
+          startedAt,
+          finishedAt: undefined,
+        })
         try {
           const outcome = await generateOne(task.prompt, 'generate')
           const details = { ...outcome.details, url: showBatchBlob(outcome.blob) }
@@ -502,12 +508,14 @@ export function useImageGenerator() {
             blobId: outcome.blobId,
             generatedAt: outcome.generatedAt,
             savedLocally: outcome.savedLocally,
+            finishedAt: Date.now(),
           })
         } catch (error) {
           failureCount += 1
           updateBatchTask(task.id, {
             status: 'error',
             error: error instanceof Error ? error.message : '生成失败',
+            finishedAt: Date.now(),
           })
         }
         setStatus(`批量生成中：${successCount + failureCount} / ${tasks.length}`)
@@ -557,7 +565,12 @@ export function useImageGenerator() {
       if (loading) return
       const task = batchTasks.find((item) => item.id === id)
       if (!task || (task.status !== 'error' && task.status !== 'cancelled')) return
-      updateBatchTask(id, { status: 'running', error: undefined })
+      updateBatchTask(id, {
+        status: 'running',
+        error: undefined,
+        startedAt: Date.now(),
+        finishedAt: undefined,
+      })
       setLoading(true)
       try {
         const outcome = await generateOne(task.prompt, 'generate')
@@ -568,11 +581,12 @@ export function useImageGenerator() {
           blobId: outcome.blobId,
           generatedAt: outcome.generatedAt,
           savedLocally: outcome.savedLocally,
+          finishedAt: Date.now(),
         })
         toast.success('重试成功')
       } catch (error) {
         const message = error instanceof Error ? error.message : '生成失败'
-        updateBatchTask(id, { status: 'error', error: message })
+        updateBatchTask(id, { status: 'error', error: message, finishedAt: Date.now() })
         toast.error(message)
       } finally {
         setLoading(false)

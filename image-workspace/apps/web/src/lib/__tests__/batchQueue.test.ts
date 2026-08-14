@@ -1,23 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { buildBatchPrompts, runWithConcurrency } from '../batchQueue'
+import { buildBatchPrompts, getBatchTaskDuration, runWithConcurrency } from '../batchQueue'
 
 describe('batchQueue', () => {
   it('builds repeated prompts within the supported range', () => {
-    expect(buildBatchPrompts('repeat', '  cinematic city  ', '', 4)).toEqual([
+    expect(buildBatchPrompts('repeat', '  cinematic city  ', [], 4)).toEqual([
       'cinematic city',
       'cinematic city',
       'cinematic city',
       'cinematic city',
     ])
-    expect(buildBatchPrompts('repeat', ' ', '', 4)).toEqual([])
-    expect(buildBatchPrompts('repeat', 'portrait', '', 99)).toHaveLength(8)
+    expect(buildBatchPrompts('repeat', ' ', [], 4)).toEqual([])
+    expect(buildBatchPrompts('repeat', 'portrait', [], 99)).toHaveLength(8)
   })
 
-  it('parses non-empty prompt lines and caps the batch at eight', () => {
-    const input = Array.from({ length: 10 }, (_, index) => ` prompt ${index + 1} `).join('\n')
+  it('normalizes confirmed prompts and caps the batch at eight', () => {
+    const input = Array.from({ length: 10 }, (_, index) => ` prompt ${index + 1} `)
     expect(buildBatchPrompts('lines', '', input, 4)).toEqual(
       Array.from({ length: 8 }, (_, index) => `prompt ${index + 1}`)
     )
+  })
+
+  it('formats running and completed task duration independently', () => {
+    expect(getBatchTaskDuration({}, 5000)).toBeNull()
+    expect(getBatchTaskDuration({ startedAt: 1000 }, 2450)).toBe('1.4s')
+    expect(getBatchTaskDuration({ startedAt: 1000, finishedAt: 3250 }, 9000)).toBe('2.3s')
   })
 
   it('never exceeds the requested concurrency', async () => {

@@ -12,10 +12,14 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { BatchGenerationTask, BatchTaskStatus } from '@/lib/batchQueue'
+import {
+  type BatchGenerationTask,
+  type BatchTaskStatus,
+  getBatchTaskDuration,
+} from '@/lib/batchQueue'
 
 interface BatchResultGridProps {
   tasks: BatchGenerationTask[]
@@ -56,12 +60,21 @@ export function BatchResultGrid({
 }: BatchResultGridProps) {
   const { t } = useTranslation()
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   const completed = tasks.filter((task) =>
     ['success', 'error', 'cancelled'].includes(task.status)
   ).length
   const successes = tasks.filter((task) => task.status === 'success').length
   const queued = tasks.some((task) => task.status === 'queued')
+  const hasRunningTask = tasks.some((task) => task.status === 'running')
   const progress = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0
+
+  useEffect(() => {
+    if (!hasRunningTask) return
+    setNow(Date.now())
+    const timer = window.setInterval(() => setNow(Date.now()), 100)
+    return () => window.clearInterval(timer)
+  }, [hasRunningTask])
 
   return (
     <>
@@ -145,6 +158,7 @@ export function BatchResultGrid({
               <AnimatePresence initial={false}>
                 {tasks.map((task) => {
                   const StatusIcon = statusIcons[task.status]
+                  const duration = getBatchTaskDuration(task, now)
                   return (
                     <motion.div
                       key={task.id}
@@ -175,6 +189,11 @@ export function BatchResultGrid({
                             <span className={`mt-2 text-xs ${statusClasses[task.status]}`}>
                               {t(`batch.${task.status}`)}
                             </span>
+                            {task.status === 'running' && duration && (
+                              <span className="mt-1.5 font-mono text-sm text-zinc-300">
+                                {duration}
+                              </span>
+                            )}
                             {task.error && (
                               <p
                                 className="mt-2 line-clamp-3 text-[10px] leading-relaxed text-red-300/80"
@@ -214,11 +233,19 @@ export function BatchResultGrid({
                           <span className="font-mono text-[10px] text-zinc-600">
                             #{String(task.index + 1).padStart(2, '0')}
                           </span>
-                          <span
-                            className={`flex items-center gap-1 text-[10px] ${statusClasses[task.status]}`}
-                          >
-                            <StatusIcon className="h-3 w-3" /> {t(`batch.${task.status}`)}
-                          </span>
+                          <div className="flex min-w-0 items-center gap-2">
+                            {duration && (
+                              <span className="flex items-center gap-1 font-mono text-[10px] text-zinc-500">
+                                <Clock3 className="h-3 w-3" />
+                                {t('batch.duration', { duration })}
+                              </span>
+                            )}
+                            <span
+                              className={`flex items-center gap-1 text-[10px] ${statusClasses[task.status]}`}
+                            >
+                              <StatusIcon className="h-3 w-3" /> {t(`batch.${task.status}`)}
+                            </span>
+                          </div>
                         </div>
                         <p
                           className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-zinc-400"
