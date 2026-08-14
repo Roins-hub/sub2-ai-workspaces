@@ -148,7 +148,9 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
                 <Wifi className="size-4" />
                 <span>
                   <span className="block">联网搜索</span>
-                  <span className="text-xs text-muted-foreground">使用 Tavily 搜索，再由当前模型整理回答</span>
+                  <span className="text-xs text-muted-foreground">
+                    使用 Tavily 搜索，再由当前模型整理回答
+                  </span>
                 </span>
               </span>
               <input
@@ -159,44 +161,49 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
               />
             </label>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor="tavily-api-key">
-                  Tavily API Key
-                </label>
-                <a
-                  href="https://app.tavily.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  申请 API Key <ExternalLink className="size-3" />
-                </a>
+            {settings.webSearch && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <label
+                    className="text-xs font-medium text-muted-foreground"
+                    htmlFor="tavily-api-key"
+                  >
+                    Tavily API Key
+                  </label>
+                  <a
+                    href="https://app.tavily.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    申请 API Key <ExternalLink className="size-3" />
+                  </a>
+                </div>
+                <div className="settings-input flex items-center">
+                  <input
+                    id="tavily-api-key"
+                    value={settings.tavilyApiKey}
+                    onChange={(event) => settings.setTavilyApiKey(event.target.value)}
+                    type={showTavilyKey ? "text" : "password"}
+                    placeholder="tvly-..."
+                    autoComplete="off"
+                    className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-sm outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTavilyKey((current) => !current)}
+                    className="mr-1.5 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label={showTavilyKey ? "隐藏 Tavily Key" : "显示 Tavily Key"}
+                    title={showTavilyKey ? "隐藏 Tavily Key" : "显示 Tavily Key"}
+                  >
+                    {showTavilyKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  仅保存在当前浏览器会话，关闭浏览器后自动清除。
+                </p>
               </div>
-              <div className="settings-input flex items-center">
-                <input
-                  id="tavily-api-key"
-                  value={settings.tavilyApiKey}
-                  onChange={(event) => settings.setTavilyApiKey(event.target.value)}
-                  type={showTavilyKey ? "text" : "password"}
-                  placeholder="tvly-..."
-                  autoComplete="off"
-                  className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-sm outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowTavilyKey((current) => !current)}
-                  className="mr-1.5 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                  aria-label={showTavilyKey ? "隐藏 Tavily Key" : "显示 Tavily Key"}
-                  title={showTavilyKey ? "隐藏 Tavily Key" : "显示 Tavily Key"}
-                >
-                  {showTavilyKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                仅保存在当前浏览器会话，关闭浏览器后自动清除。
-              </p>
-            </div>
+            )}
           </section>
         </div>
       </DialogContent>
