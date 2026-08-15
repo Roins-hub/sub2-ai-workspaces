@@ -357,6 +357,43 @@ const Composer: FC = () => {
   };
 
   const handleComposerKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (event) => {
+    if (
+      highlightedCommandItem &&
+      !event.nativeEvent.isComposing &&
+      (event.key === "Backspace" || event.key === "Delete")
+    ) {
+      const selectionStart = event.currentTarget.selectionStart;
+      const selectionEnd = event.currentTarget.selectionEnd;
+      const commandEnd = highlightedCommandItem.command.length;
+      const suffixStart = text[commandEnd] === " " ? commandEnd + 1 : commandEnd;
+      const deletionStart =
+        selectionStart === selectionEnd && event.key === "Backspace"
+          ? Math.max(0, selectionStart - 1)
+          : selectionStart;
+      const deletionEnd =
+        selectionStart === selectionEnd && event.key === "Delete"
+          ? Math.min(text.length, selectionEnd + 1)
+          : selectionEnd;
+      const deletesCommand = deletionStart < suffixStart && deletionEnd > 0;
+
+      if (deletesCommand) {
+        event.preventDefault();
+        const nextText = text.slice(Math.max(suffixStart, selectionEnd));
+        aui.composer.setText(nextText);
+        setSelectionEnd(0);
+        setDismissedText(null);
+        requestAnimationFrame(() => {
+          const input = document.querySelector<HTMLTextAreaElement>(".aui-composer-input");
+          input?.focus();
+          if (input) {
+            input.selectionStart = 0;
+            input.selectionEnd = 0;
+          }
+        });
+        return;
+      }
+    }
+
     if (!menuOpen) return;
 
     if (event.key === "Escape") {
