@@ -339,7 +339,8 @@
   }
 
   .composer-input-command-active {
-    caret-color: transparent;
+    /* The mirrored command layer owns the caret while a command chip is active. */
+    caret-color: transparent !important;
   }
 
   .dark .composer-command-badge {
