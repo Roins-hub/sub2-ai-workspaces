@@ -1,6 +1,8 @@
 packages:
   - "apps/*"
   - "packages/*"
+overrides:
+  undici: ^7.18.2
 allowBuilds:
   esbuild: set this to true or false
   sharp: set this to true or false

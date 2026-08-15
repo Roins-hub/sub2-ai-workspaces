@@ -42,7 +42,7 @@ const statusIcons: Record<BatchTaskStatus, typeof Clock3> = {
 
 const statusClasses: Record<BatchTaskStatus, string> = {
   queued: 'text-zinc-500',
-  running: 'text-orange-400',
+  running: 'text-sky-400',
   success: 'text-emerald-400',
   error: 'text-red-400',
   cancelled: 'text-zinc-600',
@@ -106,7 +106,7 @@ export function BatchResultGrid({
                   type="button"
                   onClick={onDownloadAll}
                   disabled={successes === 0 || downloading}
-                  className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 text-xs text-zinc-300 transition-colors hover:border-orange-500/60 hover:text-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-zinc-700 px-2.5 text-xs text-zinc-300 transition-colors hover:border-sky-500/60 hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {downloading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -138,7 +138,7 @@ export function BatchResultGrid({
               className="h-1.5 overflow-hidden rounded-full bg-zinc-800"
             >
               <motion.div
-                className="h-full bg-orange-500"
+                className="h-full bg-sky-500"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -207,7 +207,7 @@ export function BatchResultGrid({
                                 type="button"
                                 onClick={() => onRetry(task.id)}
                                 disabled={loading}
-                                className="mt-3 flex h-7 items-center gap-1 rounded-lg border border-zinc-700 px-2 text-[11px] text-zinc-300 transition-colors hover:border-orange-500 hover:text-orange-300 disabled:opacity-40"
+                                className="mt-3 flex h-7 items-center gap-1 rounded-lg border border-zinc-700 px-2 text-[11px] text-zinc-300 transition-colors hover:border-sky-500 hover:text-sky-300 disabled:opacity-40"
                               >
                                 <RotateCcw className="h-3 w-3" /> {t('batch.retry')}
                               </button>

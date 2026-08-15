@@ -47,6 +47,34 @@ export const ASPECT_RATIOS: AspectRatioWithIcon[] = SHARED_ASPECT_RATIOS.map((ra
 
 export type AspectRatio = (typeof ASPECT_RATIOS)[number]
 
+export const RESOLUTION_OPTIONS = [
+  { id: '720p', label: '720P' },
+  { id: '1080p', label: '1080P' },
+  { id: '2k', label: '2K' },
+  { id: '4k', label: '4K' },
+] as const
+
+export type ResolutionLevel = (typeof RESOLUTION_OPTIONS)[number]['id']
+
+export function isResolutionLevel(value: unknown): value is ResolutionLevel {
+  return RESOLUTION_OPTIONS.some((option) => option.id === value)
+}
+
+export function getResolutionPreset(ratio: AspectRatio, level: ResolutionLevel) {
+  const index = RESOLUTION_OPTIONS.findIndex((option) => option.id === level)
+  return ratio.presets[index] ?? ratio.presets[0]
+}
+
+export function findResolutionForDimensions(width: number, height: number) {
+  for (const ratio of ASPECT_RATIOS) {
+    const index = ratio.presets.findIndex((preset) => preset.w === width && preset.h === height)
+    if (index >= 0) {
+      return { ratio: ratio.label, level: RESOLUTION_OPTIONS[index]?.id ?? '720p' }
+    }
+  }
+  return null
+}
+
 // Storage
 export const STORAGE_KEY = 'zenith-settings'
 
@@ -90,7 +118,10 @@ export const IMAGE_RELAY_PRESETS = [
 ] as const
 
 export function normalizeImageRelayRoot(input: string): string {
-  let value = input.trim().replace(/[，,]+$/, '').replace(/\/+$/, '')
+  let value = input
+    .trim()
+    .replace(/[，,]+$/, '')
+    .replace(/\/+$/, '')
   if (value && !/^[a-z][a-z\d+.-]*:\/\//i.test(value)) {
     value = `https://${value}`
   }
@@ -195,7 +226,7 @@ export function loadLLMSettings(): LLMSettings {
         translateModel: parsed.translateProvider === 'custom' ? (parsed.translateModel ?? '') : '',
         autoTranslate:
           parsed.translateProvider === 'custom'
-            ? parsed.autoTranslate ?? DEFAULT_LLM_SETTINGS.autoTranslate
+            ? (parsed.autoTranslate ?? DEFAULT_LLM_SETTINGS.autoTranslate)
             : false,
         customSystemPrompt: parsed.customSystemPrompt ?? DEFAULT_LLM_SETTINGS.customSystemPrompt,
         customOptimizeConfig: {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BatchResultGrid } from '@/components/feature/BatchResultGrid'
 import { Header } from '@/components/feature/Header'
 import { ImageHistory } from '@/components/feature/ImageHistory'
@@ -16,6 +16,17 @@ export default function ImageGenerator() {
     if (typeof window === 'undefined') return false
     return window.localStorage.getItem('zenith-onboarding-completed') !== 'true'
   })
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    const saved = window.localStorage.getItem('zenith-theme')
+    if (saved === 'light' || saved === 'dark') return saved
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  })
+
+  useEffect(() => {
+    window.localStorage.setItem('zenith-theme', theme)
+    document.documentElement.style.colorScheme = theme
+  }, [theme])
 
   const closeGuide = () => {
     window.localStorage.setItem('zenith-onboarding-completed', 'true')
@@ -44,7 +55,7 @@ export default function ImageGenerator() {
     status,
     elapsed,
     selectedRatio,
-    uhd,
+    resolutionLevel,
     showInfo,
     isBlurred,
     isOptimizing,
@@ -60,8 +71,6 @@ export default function ImageGenerator() {
     setBatchPrompts,
     setPrompt,
     setNegativePrompt,
-    setWidth,
-    setHeight,
     setSteps,
     setShowInfo,
     setIsBlurred,
@@ -75,7 +84,7 @@ export default function ImageGenerator() {
     setCustomTranslateConfig,
     saveToken,
     handleRatioSelect,
-    handleUhdToggle,
+    handleResolutionSelect,
     handleDownload,
     handleDelete,
     handleGenerate,
@@ -92,7 +101,13 @@ export default function ImageGenerator() {
   } = useImageGenerator()
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div
+      className={`zenith-app min-h-screen transition-colors duration-300 ${
+        theme === 'dark'
+          ? 'dark bg-zinc-950 text-zinc-100'
+          : 'zenith-light bg-slate-50 text-slate-950'
+      }`}
+    >
       <div className="p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
           <Header
@@ -100,6 +115,8 @@ export default function ImageGenerator() {
             onHistoryClick={() => setShowHistory(true)}
             onHelpClick={() => setShowGuide(true)}
             hasToken={!!currentToken}
+            theme={theme}
+            onThemeToggle={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -112,15 +129,13 @@ export default function ImageGenerator() {
                 width={width}
                 height={height}
                 selectedRatio={selectedRatio}
-                uhd={uhd}
+                resolutionLevel={resolutionLevel}
                 loading={loading}
                 setPrompt={setPrompt}
                 setNegativePrompt={setNegativePrompt}
                 setSteps={setSteps}
-                setWidth={setWidth}
-                setHeight={setHeight}
                 handleRatioSelect={handleRatioSelect}
-                handleUhdToggle={handleUhdToggle}
+                handleResolutionSelect={handleResolutionSelect}
                 handleGenerate={handleGenerate}
                 onOptimize={handleOptimize}
                 onTranslate={handleTranslate}

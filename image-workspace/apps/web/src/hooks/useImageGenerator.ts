@@ -35,12 +35,15 @@ import {
   DEFAULT_IMAGE_RELAY_SETTINGS,
   DEFAULT_NEGATIVE_PROMPT,
   DEFAULT_PROMPT,
+  findResolutionForDimensions,
   getDefaultLLMModel,
   getDefaultModel,
   getEffectiveSystemPrompt,
   getModelsByProvider,
+  getResolutionPreset,
   type ImageGenerationMode,
   type ImageRelaySettings,
+  isResolutionLevel,
   type LLMProviderType,
   type LLMSettings,
   loadLLMSettings,
@@ -48,6 +51,7 @@ import {
   normalizeImageRelayRoot,
   PROVIDER_CONFIGS,
   type ProviderType,
+  type ResolutionLevel,
   saveLLMSettings,
   saveSettings,
 } from '@/lib/constants'
@@ -68,6 +72,15 @@ type GenerationOutcome = {
 }
 
 export function useImageGenerator() {
+  const initialSettings = useRef(loadSettings()).current
+  const initialRatio =
+    ASPECT_RATIOS.find((ratio) => ratio.label === initialSettings.selectedRatio) ?? ASPECT_RATIOS[0]
+  const initialResolutionLevel: ResolutionLevel = isResolutionLevel(initialSettings.resolutionLevel)
+    ? initialSettings.resolutionLevel
+    : initialSettings.uhd
+      ? '2k'
+      : '720p'
+  const initialDimensions = getResolutionPreset(initialRatio, initialResolutionLevel)
   const [tokens, setTokens] = useState<Record<ProviderType, string>>({
     custom: '',
     a4f: '',
@@ -96,8 +109,8 @@ export function useImageGenerator() {
   const [negativePrompt, setNegativePrompt] = useState(
     () => loadSettings().negativePrompt ?? DEFAULT_NEGATIVE_PROMPT
   )
-  const [width, setWidth] = useState(() => loadSettings().width ?? 1024)
-  const [height, setHeight] = useState(() => loadSettings().height ?? 1024)
+  const [width, setWidth] = useState(initialDimensions.w)
+  const [height, setHeight] = useState(initialDimensions.h)
   const [steps, setSteps] = useState(() => loadSettings().steps ?? 9)
   const [loading, setLoading] = useState(false)
   const [imageDetails, setImageDetails] = useState<ImageDetailsWithMeta | null>(null)
@@ -105,8 +118,8 @@ export function useImageGenerator() {
   const [generatedAt, setGeneratedAt] = useState<number | null>(null)
   const [status, setStatus] = useState('Ready.')
   const [elapsed, setElapsed] = useState(0)
-  const [selectedRatio, setSelectedRatio] = useState(() => loadSettings().selectedRatio ?? '1:1')
-  const [uhd, setUhd] = useState(() => loadSettings().uhd ?? false)
+  const [selectedRatio, setSelectedRatio] = useState(initialRatio.label)
+  const [resolutionLevel, setResolutionLevel] = useState<ResolutionLevel>(initialResolutionLevel)
   const [showInfo, setShowInfo] = useState(false)
   const [isBlurred, setIsBlurred] = useState(() => localStorage.getItem('isBlurred') === 'true')
   const initialized = useRef(false)
@@ -163,7 +176,7 @@ export function useImageGenerator() {
         height,
         steps,
         selectedRatio,
-        uhd,
+        resolutionLevel,
         provider,
         model,
         relaySettings,
@@ -176,7 +189,7 @@ export function useImageGenerator() {
     height,
     steps,
     selectedRatio,
-    uhd,
+    resolutionLevel,
     provider,
     model,
     relaySettings,
@@ -232,16 +245,16 @@ export function useImageGenerator() {
 
   const handleRatioSelect = (ratio: (typeof ASPECT_RATIOS)[number]) => {
     setSelectedRatio(ratio.label)
-    const preset = uhd ? ratio.presets[1] : ratio.presets[0]
+    const preset = getResolutionPreset(ratio, resolutionLevel)
     setWidth(preset.w)
     setHeight(preset.h)
   }
 
-  const handleUhdToggle = (enabled: boolean) => {
-    setUhd(enabled)
+  const handleResolutionSelect = (level: ResolutionLevel) => {
+    setResolutionLevel(level)
     const ratio = ASPECT_RATIOS.find((r) => r.label === selectedRatio)
     if (ratio) {
-      const preset = enabled ? ratio.presets[1] : ratio.presets[0]
+      const preset = getResolutionPreset(ratio, level)
       setWidth(preset.w)
       setHeight(preset.h)
     }
@@ -283,6 +296,11 @@ export function useImageGenerator() {
       setWidth(item.width)
       setHeight(item.height)
       setSteps(item.steps)
+      const restoredImageSettings = findResolutionForDimensions(item.width, item.height)
+      if (restoredImageSettings) {
+        setSelectedRatio(restoredImageSettings.ratio)
+        setResolutionLevel(restoredImageSettings.level)
+      }
 
       setHistoryId(item.id)
       setGeneratedAt(item.timestamp)
@@ -341,7 +359,7 @@ export function useImageGenerator() {
           ? {
               model,
               prompt: taskPrompt,
-              size: width === height ? '1024x1024' : width > height ? '1536x1024' : '1024x1536',
+              size: `${width}x${height}`,
               quality: relaySettings.quality,
               background: relaySettings.background,
               output_format: relaySettings.outputFormat,
@@ -1028,7 +1046,7 @@ export function useImageGenerator() {
     status,
     elapsed,
     selectedRatio,
-    uhd,
+    resolutionLevel,
     showInfo,
     isBlurred,
     // LLM State
@@ -1064,7 +1082,7 @@ export function useImageGenerator() {
     // Handlers
     saveToken,
     handleRatioSelect,
-    handleUhdToggle,
+    handleResolutionSelect,
     handleDownload,
     handleDelete,
     handleGenerate,

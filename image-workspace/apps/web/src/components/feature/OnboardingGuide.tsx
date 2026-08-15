@@ -74,8 +74,9 @@ const sections = [
     body: (
       <>
         <p>
-          质量支持自动、低、中、高；背景支持自动、不透明、透明；输出格式支持
-          PNG、JPEG、WebP。不同中转站对这些参数的兼容程度不同，若接口不支持，可能会忽略参数或返回错误。
+          图片设置支持五种宽高比和 720P、1080P、2K、4K
+          四档分辨率；背景支持自动、不透明、透明；输出格式支持 PNG、JPEG、WebP。4K
+          属于实验性高分辨率，生成时间和费用通常更高。
         </p>
         <p>透明背景通常更适合 PNG。需要更小文件时可选择 JPEG 或 WebP，但它们不保存透明通道。</p>
       </>
@@ -134,7 +135,7 @@ export function OnboardingGuide({ open, onClose }: OnboardingGuideProps) {
       <div className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl shadow-black/50">
         <div className="flex shrink-0 items-start justify-between border-b border-zinc-800 px-5 py-4 sm:px-6">
           <div className="pr-4">
-            <div className="mb-1 flex items-center gap-2 text-orange-400">
+            <div className="mb-1 flex items-center gap-2 text-sky-400">
               <BookOpen className="h-5 w-5" />
               <span className="text-xs font-medium uppercase tracking-[0.18em]">Zenith Guide</span>
             </div>
@@ -167,7 +168,7 @@ export function OnboardingGuide({ open, onClose }: OnboardingGuideProps) {
                 className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 sm:p-5"
               >
                 <div className="mb-2 flex items-center gap-2.5">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-orange-500/10 text-orange-400">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sky-400">
                     <Icon className="h-4 w-4" />
                   </span>
                   <h3 className="text-sm font-semibold text-zinc-100 sm:text-base">{title}</h3>
@@ -183,7 +184,7 @@ export function OnboardingGuide({ open, onClose }: OnboardingGuideProps) {
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-orange-400"
+            className="shrink-0 rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-400"
           >
             我了解了
           </button>

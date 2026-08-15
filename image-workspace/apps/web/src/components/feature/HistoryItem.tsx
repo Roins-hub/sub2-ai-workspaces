@@ -31,11 +31,11 @@ export function HistoryItem({ item, onSelect, onDelete }: HistoryItemProps) {
   }, [item.blobId])
 
   return (
-    <div className="flex gap-3 p-3 rounded-xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/30 transition-colors">
+    <div className="zenith-history-item flex gap-3 p-3 rounded-xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/30 transition-colors">
       <button
         type="button"
         onClick={() => onSelect?.(item)}
-        className="w-16 h-16 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0"
+        className="zenith-history-thumbnail w-16 h-16 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 shrink-0"
         title={t('history.load')}
       >
         {!thumbError ? (

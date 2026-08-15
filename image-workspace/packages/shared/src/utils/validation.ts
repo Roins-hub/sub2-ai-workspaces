@@ -27,11 +27,22 @@ export function validateDimensions(width: number, height: number): ValidationRes
   if (typeof width !== 'number' || typeof height !== 'number') {
     return { valid: false, error: 'Width and height must be numbers' }
   }
-  if (width < 256 || width > 2048) {
-    return { valid: false, error: 'Width must be between 256 and 2048' }
+  if (width < 256 || width > 3840) {
+    return { valid: false, error: 'Width must be between 256 and 3840' }
   }
-  if (height < 256 || height > 2048) {
-    return { valid: false, error: 'Height must be between 256 and 2048' }
+  if (height < 256 || height > 3840) {
+    return { valid: false, error: 'Height must be between 256 and 3840' }
+  }
+  if (width % 16 !== 0 || height % 16 !== 0) {
+    return { valid: false, error: 'Width and height must be multiples of 16' }
+  }
+  const pixels = width * height
+  if (pixels < 655360 || pixels > 8294400) {
+    return { valid: false, error: 'Total pixels must be between 655360 and 8294400' }
+  }
+  const aspectRatio = Math.max(width, height) / Math.min(width, height)
+  if (aspectRatio > 3) {
+    return { valid: false, error: 'Aspect ratio must not exceed 3:1' }
   }
   return { valid: true }
 }

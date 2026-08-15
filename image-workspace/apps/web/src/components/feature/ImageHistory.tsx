@@ -70,11 +70,13 @@ export function ImageHistory({ open, onClose, onSelect }: ImageHistoryProps) {
         aria-label={t('common.cancel')}
       />
 
-      <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-zinc-950 border-l border-zinc-800 shadow-2xl flex flex-col">
+      <div className="zenith-history-panel absolute right-0 top-0 bottom-0 w-full max-w-md bg-zinc-950 border-l border-zinc-800 shadow-2xl flex flex-col">
         <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold text-zinc-100">{title}</div>
-            <div className="text-xs text-zinc-500 mt-0.5">图片仅保存在当前浏览器，不会上传到本站存储。</div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              图片仅保存在当前浏览器，不会上传到本站存储。
+            </div>
           </div>
           <button
             type="button"

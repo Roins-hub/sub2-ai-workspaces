@@ -1,5 +1,15 @@
 import { DEFAULT_OPTIMIZE_SYSTEM_PROMPT } from '@z-image/shared'
-import { Eye, EyeOff, Languages, Loader2, RefreshCw, RotateCcw, Settings, Sparkles, X } from 'lucide-react'
+import {
+  Eye,
+  EyeOff,
+  Languages,
+  Loader2,
+  RefreshCw,
+  RotateCcw,
+  Settings,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
@@ -18,10 +28,10 @@ import { fetchOpenAIModels } from '@/lib/api'
 import {
   getLLMModels,
   IMAGE_RELAY_PRESETS,
+  type ImageRelaySettings,
   LLM_PROVIDER_OPTIONS,
   type LLMProviderType,
   type LLMSettings,
-  type ImageRelaySettings,
   normalizeImageRelayRoot,
   type ProviderType,
 } from '@/lib/constants'
@@ -40,7 +50,9 @@ interface SettingsModalProps {
   availableModels?: Array<{ id: string; name: string }>
   setProvider?: (provider: ProviderType) => void
   setModel: (model: string) => void
-  setRelaySettings: (settings: ImageRelaySettings | ((current: ImageRelaySettings) => ImageRelaySettings)) => void
+  setRelaySettings: (
+    settings: ImageRelaySettings | ((current: ImageRelaySettings) => ImageRelaySettings)
+  ) => void
   saveToken: (provider: ProviderType, token: string) => void
   llmSettings: LLMSettings
   setLLMProvider: (provider: LLMProviderType) => void
@@ -181,7 +193,7 @@ export function SettingsModal({
             onClick={() => setActiveTab('api')}
             className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs font-medium transition-colors ${
               activeTab === 'api'
-                ? 'text-orange-400 border-b-2 border-orange-400 bg-zinc-800/50'
+                ? 'text-sky-400 border-b-2 border-sky-400 bg-zinc-800/50'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
             }`}
           >
@@ -194,7 +206,7 @@ export function SettingsModal({
             onClick={() => setActiveTab('optimize')}
             className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs font-medium transition-colors ${
               activeTab === 'optimize'
-                ? 'text-orange-400 border-b-2 border-orange-400 bg-zinc-800/50'
+                ? 'text-sky-400 border-b-2 border-sky-400 bg-zinc-800/50'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
             }`}
           >
@@ -206,7 +218,7 @@ export function SettingsModal({
             onClick={() => setActiveTab('translate')}
             className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs font-medium transition-colors ${
               activeTab === 'translate'
-                ? 'text-orange-400 border-b-2 border-orange-400 bg-zinc-800/50'
+                ? 'text-sky-400 border-b-2 border-sky-400 bg-zinc-800/50'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30'
             }`}
           >
@@ -250,11 +262,15 @@ export function SettingsModal({
                   <Input
                     type="url"
                     value={relaySettings.baseUrl}
-                    onChange={(e) => setRelaySettings((current) => ({ ...current, baseUrl: e.target.value }))}
-                    onBlur={(e) => setRelaySettings((current) => ({
-                      ...current,
-                      baseUrl: normalizeImageRelayRoot(e.target.value),
-                    }))}
+                    onChange={(e) =>
+                      setRelaySettings((current) => ({ ...current, baseUrl: e.target.value }))
+                    }
+                    onBlur={(e) =>
+                      setRelaySettings((current) => ({
+                        ...current,
+                        baseUrl: normalizeImageRelayRoot(e.target.value),
+                      }))
+                    }
                     placeholder="https://example.com"
                     className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
                   />
@@ -266,7 +282,12 @@ export function SettingsModal({
 
               <div>
                 <Label className="text-zinc-400 text-xs">{t('apiConfig.model')}</Label>
-                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-image-2" className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100" />
+                <Input
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="gpt-image-2"
+                  className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100"
+                />
               </div>
 
               <div>
@@ -283,7 +304,7 @@ export function SettingsModal({
                   <button
                     type="button"
                     onClick={() => setShowImageApiKey((visible) => !visible)}
-                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-200 focus-visible:outline-none focus-visible:text-orange-400"
+                    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-200 focus-visible:outline-none focus-visible:text-sky-400"
                     aria-label={showImageApiKey ? '隐藏 API Key' : '显示 API Key'}
                     aria-pressed={showImageApiKey}
                     title={showImageApiKey ? '隐藏 API Key' : '显示 API Key'}
@@ -291,13 +312,54 @@ export function SettingsModal({
                     {showImageApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="mt-1 text-[10px] text-zinc-500">Key 经浏览器加密后仅保存在当前设备。</p>
+                <p className="mt-1 text-[10px] text-zinc-500">
+                  Key 经浏览器加密后仅保存在当前设备。
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div><Label className="text-zinc-400 text-xs">质量</Label><Select value={relaySettings.quality} onValueChange={(quality) => setRelaySettings((current) => ({ ...current, quality: quality as ImageRelaySettings['quality'] }))}><SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="auto">自动</SelectItem><SelectItem value="low">低</SelectItem><SelectItem value="medium">中</SelectItem><SelectItem value="high">高</SelectItem></SelectContent></Select></div>
-                <div><Label className="text-zinc-400 text-xs">背景</Label><Select value={relaySettings.background} onValueChange={(background) => setRelaySettings((current) => ({ ...current, background: background as ImageRelaySettings['background'] }))}><SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="auto">自动</SelectItem><SelectItem value="opaque">不透明</SelectItem><SelectItem value="transparent">透明</SelectItem></SelectContent></Select></div>
-                <div><Label className="text-zinc-400 text-xs">格式</Label><Select value={relaySettings.outputFormat} onValueChange={(outputFormat) => setRelaySettings((current) => ({ ...current, outputFormat: outputFormat as ImageRelaySettings['outputFormat'] }))}><SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="png">PNG</SelectItem><SelectItem value="jpeg">JPEG</SelectItem><SelectItem value="webp">WebP</SelectItem></SelectContent></Select></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-zinc-400 text-xs">背景</Label>
+                  <Select
+                    value={relaySettings.background}
+                    onValueChange={(background) =>
+                      setRelaySettings((current) => ({
+                        ...current,
+                        background: background as ImageRelaySettings['background'],
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">自动</SelectItem>
+                      <SelectItem value="opaque">不透明</SelectItem>
+                      <SelectItem value="transparent">透明</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-zinc-400 text-xs">格式</Label>
+                  <Select
+                    value={relaySettings.outputFormat}
+                    onValueChange={(outputFormat) =>
+                      setRelaySettings((current) => ({
+                        ...current,
+                        outputFormat: outputFormat as ImageRelaySettings['outputFormat'],
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="mt-1 bg-zinc-950 border-zinc-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="png">PNG</SelectItem>
+                      <SelectItem value="jpeg">JPEG</SelectItem>
+                      <SelectItem value="webp">WebP</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           )}

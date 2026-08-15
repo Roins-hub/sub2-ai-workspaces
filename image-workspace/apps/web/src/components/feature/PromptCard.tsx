@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Check,
   Copy,
@@ -16,7 +17,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Accordion,
@@ -28,14 +29,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { buildBatchPrompts, MAX_BATCH_CONCURRENCY } from '@/lib/batchQueue'
+import { buildBatchPrompts } from '@/lib/batchQueue'
 import {
   ASPECT_RATIOS,
   type AspectRatio,
   type BatchPromptMode,
   type ImageGenerationMode,
+  RESOLUTION_OPTIONS,
+  type ResolutionLevel,
 } from '@/lib/constants'
 
 interface PromptCardProps {
@@ -45,15 +47,13 @@ interface PromptCardProps {
   width: number
   height: number
   selectedRatio: string
-  uhd: boolean
+  resolutionLevel: ResolutionLevel
   loading: boolean
   setPrompt: (v: string) => void
   setNegativePrompt: (v: string) => void
   setSteps: (v: number) => void
-  setWidth: (v: number) => void
-  setHeight: (v: number) => void
   handleRatioSelect: (ratio: AspectRatio) => void
-  handleUhdToggle: (enabled: boolean) => void
+  handleResolutionSelect: (level: ResolutionLevel) => void
   handleGenerate: () => void
   // Prompt optimization/translation
   onOptimize?: () => void
@@ -75,61 +75,87 @@ interface PromptCardProps {
   setBatchPrompts: (prompts: string[]) => void
 }
 
-interface BatchRangeControlProps {
+interface SteppedRangeControlProps {
   value: number
   label: string
   hint: string
   valueLabel: string
   ariaLabel: string
   disabled: boolean
+  min: number
+  labels: readonly string[]
   onChange: (value: number) => void
 }
 
-function BatchRangeControl({
+function SteppedRangeControl({
   value,
   label,
   hint,
   valueLabel,
   ariaLabel,
   disabled,
+  min,
+  labels,
   onChange,
-}: BatchRangeControlProps) {
+}: SteppedRangeControlProps) {
+  const max = min + labels.length - 1
+  const accentIndex = Math.min(Math.max(value - min, 0), 3)
+  const sliderAccent = `var(--zenith-slider-${accentIndex + 1})`
+  const sliderStyle = {
+    '--slider-accent': sliderAccent,
+    '--slider-accent-soft': `color-mix(in srgb, ${sliderAccent} 14%, transparent)`,
+  } as CSSProperties
+
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 sm:p-5">
+    <div className="rounded-2xl border border-zinc-200 bg-zinc-50/90 p-4 transition-colors duration-300 dark:border-zinc-800 dark:bg-zinc-900/70 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-zinc-200">{label}</p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500">{hint}</p>
+          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{label}</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{hint}</p>
         </div>
-        <span className="shrink-0 rounded-xl bg-orange-500/15 px-3 py-1.5 font-mono text-sm font-semibold tabular-nums text-orange-300">
+        <span
+          className="shrink-0 rounded-xl px-3 py-1.5 font-mono text-sm font-semibold tabular-nums transition-colors duration-300"
+          style={{
+            color: sliderAccent,
+            backgroundColor: `color-mix(in srgb, ${sliderAccent} 14%, transparent)`,
+          }}
+        >
           {valueLabel}
         </span>
       </div>
 
       <div className="mt-5">
-        <div className="relative">
+        <div className="relative" style={sliderStyle}>
           <Slider
             value={[value]}
             onValueChange={(values) => onChange(values[0])}
-            min={1}
-            max={MAX_BATCH_CONCURRENCY}
+            min={min}
+            max={max}
             step={1}
             disabled={disabled}
             aria-label={ariaLabel}
-            className="h-9 [&_[data-slot=slider-range]]:bg-orange-500 [&_[data-slot=slider-thumb]]:relative [&_[data-slot=slider-thumb]]:z-30 [&_[data-slot=slider-thumb]]:size-7 [&_[data-slot=slider-thumb]]:border-4 [&_[data-slot=slider-thumb]]:border-zinc-100 [&_[data-slot=slider-thumb]]:bg-zinc-200 [&_[data-slot=slider-thumb]]:shadow-[0_4px_14px_rgba(0,0,0,0.35)] [&_[data-slot=slider-thumb]]:transition-transform [&_[data-slot=slider-thumb]]:duration-200 [&_[data-slot=slider-thumb]]:hover:scale-105 [&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-track]]:bg-zinc-700"
+            className="animated-slider h-10 [&_[data-slot=slider-range]]:bg-[var(--slider-accent)] [&_[data-slot=slider-thumb]]:relative [&_[data-slot=slider-thumb]]:z-30 [&_[data-slot=slider-thumb]]:size-8 [&_[data-slot=slider-thumb]]:border-0 [&_[data-slot=slider-thumb]]:bg-white [&_[data-slot=slider-thumb]]:transition-transform [&_[data-slot=slider-thumb]]:duration-200 [&_[data-slot=slider-thumb]]:ease-out [&_[data-slot=slider-thumb]]:hover:scale-110 [&_[data-slot=slider-thumb]]:focus-visible:scale-110 [&_[data-slot=slider-track]]:h-8 [&_[data-slot=slider-track]]:bg-zinc-200 dark:[&_[data-slot=slider-track]]:bg-zinc-700"
           />
-          <div className="pointer-events-none absolute inset-x-1 top-1/2 z-20 flex -translate-y-1/2 justify-between">
-            {Array.from({ length: MAX_BATCH_CONCURRENCY }, (_, index) => index + 1).map((step) => (
-              <span
-                key={step}
-                className={`size-1.5 rounded-full ${step <= value ? 'bg-white/45' : 'bg-zinc-500'}`}
-              />
-            ))}
+          <div className="pointer-events-none absolute inset-x-4 top-1/2 z-20 flex -translate-y-1/2 justify-between">
+            {labels.map((_, index) => {
+              const step = min + index
+              return (
+                <span key={step} className="flex w-0 justify-center">
+                  <span
+                    className={`size-1.5 shrink-0 rounded-full transition-colors duration-200 ${
+                      step <= value ? 'bg-white/50' : 'bg-zinc-400 dark:bg-zinc-500'
+                    }`}
+                  />
+                </span>
+              )
+            })}
           </div>
         </div>
-        <div className="mt-1 flex justify-between px-0.5 font-mono text-[11px] tabular-nums text-zinc-500">
-          {Array.from({ length: MAX_BATCH_CONCURRENCY }, (_, index) => (
-            <span key={index + 1}>{index + 1}</span>
+        <div className="mx-4 mt-1 flex justify-between font-mono text-[11px] tabular-nums text-zinc-500">
+          {labels.map((stepLabel) => (
+            <span key={stepLabel} className="flex w-0 justify-center whitespace-nowrap">
+              {stepLabel}
+            </span>
           ))}
         </div>
       </div>
@@ -156,15 +182,13 @@ export function PromptCard({
   width,
   height,
   selectedRatio,
-  uhd,
+  resolutionLevel,
   loading,
   setPrompt,
   setNegativePrompt,
   setSteps,
-  setWidth,
-  setHeight,
   handleRatioSelect,
-  handleUhdToggle,
+  handleResolutionSelect,
   handleGenerate,
   onOptimize,
   onTranslate,
@@ -257,7 +281,7 @@ export function PromptCard({
                   size="sm"
                   onClick={onOptimize}
                   disabled={isProcessing || !prompt.trim()}
-                  className="h-7 rounded-lg px-2 text-zinc-400 hover:bg-orange-500/10 hover:text-orange-300"
+                  className="h-7 rounded-lg px-2 text-zinc-400 hover:bg-sky-500/10 hover:text-sky-300"
                   title={t('prompt.optimizePrompt')}
                 >
                   {isOptimizing ? (
@@ -301,7 +325,7 @@ export function PromptCard({
                   type="button"
                   onClick={confirmBatchPrompt}
                   disabled={!canConfirmBatchPrompt}
-                  className="flex h-8 items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-500/10 px-3 text-xs text-orange-300 transition-colors hover:bg-orange-500/20 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-transparent disabled:text-zinc-600"
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-sky-500 bg-sky-500/10 px-3 text-xs text-sky-500 transition-colors hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-transparent disabled:text-zinc-600"
                 >
                   {editingBatchPrompt === null ? (
                     <Plus className="h-3.5 w-3.5" />
@@ -325,7 +349,7 @@ export function PromptCard({
                 onClick={() => setGenerationMode('generate')}
                 className={
                   generationMode === 'generate'
-                    ? 'rounded-xl border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
+                    ? 'rounded-xl border border-sky-400 bg-sky-500/10 text-sky-500 hover:bg-sky-500/15 hover:text-sky-400'
                     : 'rounded-xl border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
@@ -339,7 +363,7 @@ export function PromptCard({
                 onClick={() => setGenerationMode('edit')}
                 className={
                   generationMode === 'edit'
-                    ? 'rounded-xl border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
+                    ? 'rounded-xl border border-sky-400 bg-sky-500/10 text-sky-500 hover:bg-sky-500/15 hover:text-sky-400'
                     : 'rounded-xl border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
@@ -353,7 +377,7 @@ export function PromptCard({
                 onClick={() => setGenerationMode('batch')}
                 className={
                   generationMode === 'batch'
-                    ? 'rounded-xl border border-orange-400 bg-orange-500/10 text-orange-300 hover:bg-orange-500/15 hover:text-orange-200'
+                    ? 'rounded-xl border border-sky-400 bg-sky-500/10 text-sky-500 hover:bg-sky-500/15 hover:text-sky-400'
                     : 'rounded-xl border border-transparent text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-200'
                 }
               >
@@ -392,7 +416,7 @@ export function PromptCard({
                 </div>
 
                 {batchPromptMode === 'repeat' ? (
-                  <BatchRangeControl
+                  <SteppedRangeControl
                     value={batchCount}
                     onChange={setBatchCount}
                     label={t('batch.repeatControl')}
@@ -400,10 +424,12 @@ export function PromptCard({
                     valueLabel={t('batch.imageCount', { count: batchCount })}
                     ariaLabel={t('batch.repeatControl')}
                     disabled={loading}
+                    min={1}
+                    labels={['1', '2', '3', '4']}
                   />
                 ) : (
                   <div className="space-y-3">
-                    <BatchRangeControl
+                    <SteppedRangeControl
                       value={batchConcurrency}
                       onChange={setBatchConcurrency}
                       label={t('batch.linesConcurrency')}
@@ -411,6 +437,8 @@ export function PromptCard({
                       valueLabel={t('batch.concurrentCount', { count: batchConcurrency })}
                       ariaLabel={t('batch.linesConcurrency')}
                       disabled={loading}
+                      min={1}
+                      labels={['1', '2', '3', '4']}
                     />
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-zinc-400">{t('batch.confirmedPrompts')}</span>
@@ -429,11 +457,11 @@ export function PromptCard({
                             key={`${index}-${item}`}
                             className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-2 rounded-xl border px-2 py-2.5 transition-colors ${
                               editingBatchPrompt === index
-                                ? 'border-orange-500/70 bg-orange-500/5'
+                                ? 'border-sky-500/70 bg-sky-500/5'
                                 : 'border-zinc-800 bg-zinc-900/60'
                             }`}
                           >
-                            <span className="pt-0.5 font-mono text-[10px] text-orange-400">
+                            <span className="pt-0.5 font-mono text-[10px] text-sky-500">
                               #{String(index + 1).padStart(2, '0')}
                             </span>
                             <p className="min-w-0 whitespace-pre-wrap break-words text-xs leading-relaxed text-zinc-300">
@@ -472,7 +500,7 @@ export function PromptCard({
                   <span className="text-zinc-500">
                     {t('batch.requestSummary', { count: batchTaskCount })}
                   </span>
-                  <span className="font-mono text-orange-400">
+                  <span className="font-mono text-sky-500">
                     {t('batch.concurrency', { count: activeBatchConcurrency })}
                   </span>
                 </div>
@@ -549,11 +577,11 @@ export function PromptCard({
                   <div>
                     <Label className="text-zinc-400 text-xs flex items-center gap-2">
                       <RotateCcw
-                        className="w-3 h-3 cursor-pointer hover:text-orange-400"
+                        className="w-3 h-3 cursor-pointer hover:text-sky-400"
                         onClick={() => setSteps(9)}
                       />
                       {t('prompt.inferenceStepsLabel')}:{' '}
-                      <span className="text-orange-400 font-mono">{steps}</span>
+                      <span className="text-sky-400 font-mono">{steps}</span>
                     </Label>
                     <Slider
                       value={[steps]}
@@ -561,7 +589,7 @@ export function PromptCard({
                       min={1}
                       max={50}
                       step={1}
-                      className="mt-2 bg-orange-500"
+                      className="mt-2 bg-sky-500"
                     />
                   </div>
                 </div>
@@ -571,25 +599,10 @@ export function PromptCard({
         )}
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-zinc-300 text-sm font-medium">{t('prompt.aspectRatio')}</Label>
-            <div className="flex items-center gap-4">
-              {!isCustomProvider && (
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="uhd" className="text-zinc-400 text-xs">
-                    {t('prompt.uhd2k')}
-                  </Label>
-                  <Switch
-                    id="uhd"
-                    checked={uhd}
-                    className="data-[state=unchecked]:[&>span]:bg-zinc-500 data-[state=checked]:[&>span]:bg-yellow-400"
-                    onCheckedChange={handleUhdToggle}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2">
+          <Label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            {t('prompt.imageSettings')}
+          </Label>
+          <div className="grid w-full grid-cols-5 gap-2">
             {ASPECT_RATIOS.map((ratio) => {
               const Icon = ratio.icon
               const isSelected = selectedRatio === ratio.label
@@ -598,71 +611,54 @@ export function PromptCard({
                   type="button"
                   key={ratio.label}
                   onClick={() => handleRatioSelect(ratio)}
-                  className={`flex flex-col items-center gap-1 rounded-xl border px-4 py-2 transition-all ${
+                  className={`flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl border py-3 transition-all duration-200 active:scale-[0.97] sm:py-4 ${
                     isSelected
-                      ? 'bg-orange-500/10 border-orange-500 text-orange-400'
-                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                      ? 'border-sky-500 bg-sky-500/10 text-sky-600 shadow-[0_8px_24px_rgba(14,165,233,0.12)] dark:text-sky-300'
+                      : 'border-zinc-200 bg-zinc-50 text-zinc-500 hover:border-sky-300 hover:text-sky-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-sky-700 dark:hover:text-sky-300'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-xs font-medium">{ratio.label}</span>
+                  <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
+                  <span className="text-xs font-semibold sm:text-sm">{ratio.label}</span>
                 </button>
               )
             })}
           </div>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.div
+              key={selectedRatio}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <SteppedRangeControl
+                value={Math.max(
+                  0,
+                  RESOLUTION_OPTIONS.findIndex((option) => option.id === resolutionLevel)
+                )}
+                onChange={(value) => {
+                  const option = RESOLUTION_OPTIONS[value]
+                  if (option) handleResolutionSelect(option.id)
+                }}
+                label={t('prompt.resolution')}
+                hint={t('prompt.resolutionHint', { width, height })}
+                valueLabel={
+                  RESOLUTION_OPTIONS.find((option) => option.id === resolutionLevel)?.label ??
+                  '720P'
+                }
+                ariaLabel={t('prompt.resolution')}
+                disabled={loading}
+                min={0}
+                labels={RESOLUTION_OPTIONS.map((option) => option.label)}
+              />
+            </motion.div>
+          </AnimatePresence>
         </div>
-
-        {!isCustomProvider && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-zinc-400 text-xs flex items-center gap-2">
-                <RotateCcw
-                  className="w-3 h-3 cursor-pointer hover:text-orange-400"
-                  onClick={() => {
-                    const ratio = ASPECT_RATIOS.find((r) => r.label === selectedRatio)
-                    if (ratio) setWidth(uhd ? ratio.presets[1].w : ratio.presets[0].w)
-                  }}
-                />
-                {t('prompt.widthLabel')}:{' '}
-                <span className="text-orange-400 font-mono">{width}px</span>
-              </Label>
-              <Slider
-                value={[width]}
-                onValueChange={(v) => setWidth(v[0])}
-                min={512}
-                max={2048}
-                step={64}
-                className="mt-2 bg-orange-500"
-              />
-            </div>
-            <div>
-              <Label className="text-zinc-400 text-xs flex items-center gap-2">
-                <RotateCcw
-                  className="w-3 h-3 cursor-pointer hover:text-orange-400"
-                  onClick={() => {
-                    const ratio = ASPECT_RATIOS.find((r) => r.label === selectedRatio)
-                    if (ratio) setHeight(uhd ? ratio.presets[1].h : ratio.presets[0].h)
-                  }}
-                />
-                {t('prompt.heightLabel')}:{' '}
-                <span className="text-orange-400 font-mono">{height}px</span>
-              </Label>
-              <Slider
-                value={[height]}
-                onValueChange={(v) => setHeight(v[0])}
-                min={512}
-                max={2048}
-                step={64}
-                className="mt-2 bg-orange-500"
-              />
-            </div>
-          </div>
-        )}
 
         <Button
           onClick={handleGenerate}
           disabled={loading || (generationMode === 'batch' && batchTaskCount === 0)}
-          className="h-12 w-full rounded-xl bg-orange-500 text-base font-semibold text-white hover:bg-orange-600 active:scale-[0.99] disabled:opacity-50"
+          className="h-12 w-full rounded-xl bg-sky-500 text-base font-semibold text-white shadow-[0_10px_28px_rgba(14,165,233,0.2)] transition-all duration-200 hover:bg-sky-600 hover:shadow-[0_12px_32px_rgba(14,165,233,0.28)] active:scale-[0.99] disabled:opacity-50"
         >
           {loading ? (
             <>

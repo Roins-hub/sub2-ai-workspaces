@@ -81,6 +81,288 @@
   }
 }
 
+.zenith-app {
+  --zenith-slider-1: #7dd3fc;
+  --zenith-slider-2: #38bdf8;
+  --zenith-slider-3: #0ea5e9;
+  --zenith-slider-4: #0284c7;
+}
+
+.zenith-app.dark {
+  --zenith-slider-1: #fdba74;
+  --zenith-slider-2: #fb923c;
+  --zenith-slider-3: #f97316;
+  --zenith-slider-4: #ea580c;
+}
+
+.zenith-app.dark .bg-zinc-50,
+.zenith-app.dark .bg-zinc-50\/90 {
+  background-color: rgb(24 24 27 / 0.96);
+}
+
+.zenith-app.dark .border-zinc-200,
+.zenith-app.dark .border-zinc-300 {
+  border-color: #27272a;
+}
+
+.zenith-app.dark .text-zinc-700,
+.zenith-app.dark .text-zinc-800 {
+  color: #e4e4e7;
+}
+
+.zenith-app.dark .hover\:border-sky-300:hover {
+  border-color: #f97316;
+}
+
+/* The original Zenith UI used fixed dark utilities. These scoped overrides let the
+   existing feature surfaces participate in the page-level light theme without
+   changing modal, history, and result behavior. */
+.zenith-light .bg-zinc-950 {
+  background-color: #ffffff;
+}
+
+.zenith-light .bg-zinc-950\/55,
+.zenith-light .bg-zinc-950\/60,
+.zenith-light .bg-zinc-950\/70 {
+  background-color: rgb(248 250 252 / 0.92);
+}
+
+.zenith-light .bg-zinc-900,
+.zenith-light .bg-zinc-900\/50,
+.zenith-light .bg-zinc-900\/60,
+.zenith-light .bg-zinc-900\/70,
+.zenith-light .bg-zinc-900\/90 {
+  background-color: rgb(255 255 255 / 0.96);
+}
+
+.zenith-light .bg-zinc-800\/30,
+.zenith-light .bg-zinc-800\/50,
+.zenith-light .bg-zinc-800\/60,
+.zenith-light .bg-zinc-800\/70 {
+  background-color: rgb(241 245 249 / 0.9);
+}
+
+.zenith-light .border-zinc-800 {
+  border-color: #e2e8f0;
+}
+
+.zenith-light .border-zinc-700 {
+  border-color: #cbd5e1;
+}
+
+.zenith-light .text-zinc-100,
+.zenith-light .text-zinc-200 {
+  color: #1e293b;
+}
+
+.zenith-light .text-zinc-300 {
+  color: #334155;
+}
+
+.zenith-light .text-zinc-400 {
+  color: #475569;
+}
+
+.zenith-light .text-zinc-500 {
+  color: #64748b;
+}
+
+.zenith-light .text-zinc-600,
+.zenith-light .text-zinc-700 {
+  color: #94a3b8;
+}
+
+.zenith-light .placeholder\:text-zinc-600::placeholder {
+  color: #94a3b8;
+}
+
+.zenith-light .hover\:bg-zinc-800:hover,
+.zenith-light .hover\:bg-zinc-800\/50:hover,
+.zenith-light .hover\:bg-zinc-800\/60:hover,
+.zenith-light .hover\:bg-zinc-800\/70:hover {
+  background-color: #f1f5f9;
+}
+
+.zenith-light .hover\:text-zinc-200:hover,
+.zenith-light .hover\:text-zinc-300:hover {
+  color: #0f172a;
+}
+
+/* Image metadata and controls use a light surface in light mode so their
+   contrast follows the surrounding canvas instead of the generated image. */
+.zenith-light .zenith-result-info {
+  background-color: rgb(255 255 255 / 0.94);
+  border-color: #dbeafe;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.14);
+  color: #334155;
+}
+
+.zenith-light .zenith-result-info .text-zinc-500 {
+  color: #64748b;
+}
+
+.zenith-light .zenith-image-toolbar {
+  background-color: rgb(255 255 255 / 0.94);
+  border-color: #dbeafe;
+  box-shadow: 0 10px 26px rgb(15 23 42 / 0.18);
+}
+
+.zenith-light .zenith-image-toolbar button {
+  color: #475569;
+}
+
+.zenith-light .zenith-image-toolbar button:hover {
+  background-color: #e0f2fe;
+  color: #0f172a;
+}
+
+.zenith-light .zenith-image-toolbar button.bg-sky-600,
+.zenith-light .zenith-image-toolbar button.bg-sky-600:hover {
+  background-color: #0284c7;
+  color: #ffffff;
+}
+
+.zenith-light .zenith-image-toolbar button.text-sky-400 {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+/* History is a light drawer in light mode; the explicit /40 utility needs its
+   own override because it is not covered by the dark-surface mappings above. */
+.zenith-light .zenith-history-panel {
+  background-color: #f8fafc;
+  border-color: #dbe4ee;
+}
+
+.zenith-light .zenith-history-item {
+  background-color: rgb(255 255 255 / 0.88);
+  border-color: #dbe4ee;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.06);
+}
+
+.zenith-light .zenith-history-item:hover {
+  background-color: #ffffff;
+}
+
+.zenith-light .zenith-history-thumbnail {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.zenith-light .zenith-history-item .text-zinc-200 {
+  color: #172033;
+}
+
+.zenith-light .zenith-history-item .text-zinc-500 {
+  color: #52627a;
+}
+
+.zenith-light .zenith-history-item .text-zinc-600 {
+  color: #64748b;
+}
+
+.animated-slider > span[style*="position: absolute"] {
+  transition: left 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: left;
+}
+
+.animated-slider [data-slot="slider-range"] {
+  transition:
+    left 260ms cubic-bezier(0.16, 1, 0.3, 1),
+    right 260ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 220ms ease-out;
+}
+
+.animated-slider [data-slot="slider-thumb"] {
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--slider-accent) 26%, transparent);
+}
+
+.zenith-app.dark .animated-slider [data-slot="slider-track"] {
+  background-color: #3f3f46;
+}
+
+/* Light mode keeps the requested sky-blue controls; dark mode restores the
+   original Zenith orange accent while retaining the new layouts and behavior. */
+.zenith-app.dark .text-sky-300,
+.zenith-app.dark .text-sky-400,
+.zenith-app.dark .text-sky-500,
+.zenith-app.dark .text-sky-600 {
+  color: #f97316;
+}
+
+.zenith-app.dark .bg-sky-400 {
+  background-color: #fb923c;
+}
+
+.zenith-app.dark .bg-sky-500 {
+  background-color: #f97316;
+}
+
+.zenith-app.dark .bg-sky-600 {
+  background-color: #ea580c;
+}
+
+.zenith-app.dark .bg-sky-500\/5 {
+  background-color: rgb(249 115 22 / 0.05);
+}
+
+.zenith-app.dark .bg-sky-500\/10 {
+  background-color: rgb(249 115 22 / 0.1);
+}
+
+.zenith-app.dark .bg-sky-500\/15 {
+  background-color: rgb(249 115 22 / 0.15);
+}
+
+.zenith-app.dark .bg-sky-500\/20 {
+  background-color: rgb(249 115 22 / 0.2);
+}
+
+.zenith-app.dark .border-sky-300,
+.zenith-app.dark .border-sky-400,
+.zenith-app.dark .border-sky-500,
+.zenith-app.dark .border-sky-500\/60,
+.zenith-app.dark .border-sky-500\/70,
+.zenith-app.dark .border-sky-700 {
+  border-color: #f97316;
+}
+
+.zenith-app.dark .hover\:bg-sky-400:hover {
+  background-color: #fb923c;
+}
+
+.zenith-app.dark .hover\:bg-sky-500\/10:hover {
+  background-color: rgb(249 115 22 / 0.1);
+}
+
+.zenith-app.dark .hover\:bg-sky-500\/15:hover {
+  background-color: rgb(249 115 22 / 0.15);
+}
+
+.zenith-app.dark .hover\:bg-sky-500\/20:hover {
+  background-color: rgb(249 115 22 / 0.2);
+}
+
+.zenith-app.dark .hover\:bg-sky-600:hover {
+  background-color: #ea580c;
+}
+
+.zenith-app.dark .hover\:text-sky-300:hover,
+.zenith-app.dark .hover\:text-sky-400:hover,
+.zenith-app.dark .hover\:text-sky-600:hover {
+  color: #fb923c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zenith-app *,
+  .zenith-app *::before,
+  .zenith-app *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
+}
+
 @layer base {
   * {
     @apply border-[var(--border)];

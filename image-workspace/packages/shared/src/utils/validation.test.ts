@@ -49,7 +49,22 @@ describe('validateDimensions', () => {
   })
 
   it('should return invalid for height above maximum', () => {
-    const result = validateDimensions(1024, 3000)
+    const result = validateDimensions(1024, 4000)
+    expect(result.valid).toBe(false)
+  })
+
+  it('should return valid for supported 4K dimensions', () => {
+    expect(validateDimensions(3840, 2160).valid).toBe(true)
+    expect(validateDimensions(3264, 2448).valid).toBe(true)
+  })
+
+  it('should reject dimensions that are not multiples of 16', () => {
+    const result = validateDimensions(1920, 1080)
+    expect(result.valid).toBe(false)
+  })
+
+  it('should reject dimensions above the total pixel limit', () => {
+    const result = validateDimensions(3840, 3840)
     expect(result.valid).toBe(false)
   })
 })
