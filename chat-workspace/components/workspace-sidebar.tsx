@@ -1,80 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Download, FileUp, MessageSquare, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { useRef, useState, type MouseEvent } from "react";
+import { Download, FileUp, MessageSquare, Trash2, X } from "lucide-react";
 import {
-  ThreadListItemPrimitive,
-  ThreadListPrimitive,
-  useAui,
-  useAuiState,
-} from "@assistant-ui/react";
+  ThreadListItems,
+  ThreadListNew,
+  ThreadListRoot,
+} from "@/components/assistant-ui/thread-list";
 import { clearChatHistory, exportChatBackup, importChatBackup } from "@/lib/indexed-db-storage";
 import { cn } from "@/lib/utils";
-
-function ThreadItem({ query }: { query: string }) {
-  const aui = useAui();
-  const title = useAuiState((state) => state.threadListItem.title ?? "新聊天");
-  const isMain = useAuiState((state) => state.threads.mainThreadId === state.threadListItem.id);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(title);
-
-  if (query && !title.toLowerCase().includes(query.toLowerCase())) return null;
-
-  const submitRename = async () => {
-    const next = draft.trim();
-    if (next) await aui.threadListItem.rename(next);
-    setEditing(false);
-  };
-
-  return (
-    <ThreadListItemPrimitive.Root
-      className={cn("thread-item group relative flex items-center", isMain && "thread-item-active")}
-    >
-      {editing ? (
-        <form
-          className="flex w-full items-center px-2 py-1.5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitRename();
-          }}
-        >
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            autoFocus
-            onBlur={() => void submitRename()}
-            className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-sm outline-none"
-          />
-        </form>
-      ) : (
-        <>
-          <ThreadListItemPrimitive.Trigger className="min-w-0 flex-1 truncate px-3 py-2.5 pr-16 text-left text-sm">
-            <ThreadListItemPrimitive.Title fallback="新聊天" />
-          </ThreadListItemPrimitive.Trigger>
-          <div className="absolute right-1.5 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-            <button
-              type="button"
-              onClick={() => {
-                setDraft(title);
-                setEditing(true);
-              }}
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
-              title="重命名"
-            >
-              <Pencil className="size-3.5" />
-            </button>
-            <ThreadListItemPrimitive.Delete
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-destructive"
-              title="删除"
-            >
-              <Trash2 className="size-3.5" />
-            </ThreadListItemPrimitive.Delete>
-          </div>
-        </>
-      )}
-    </ThreadListItemPrimitive.Root>
-  );
-}
 
 function HistoryTools() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -139,31 +73,50 @@ function HistoryTools() {
   );
 }
 
-export function WorkspaceSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [query, setQuery] = useState("");
+type WorkspaceSidebarProps = {
+  open: boolean;
+  onClose: () => void;
+  collapsed: boolean;
+};
+
+export function WorkspaceSidebar({ open, onClose, collapsed }: WorkspaceSidebarProps) {
+  const closeMobileSidebarAfterNavigation = (event: MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) return;
+    if (
+      event.target.closest(
+        '[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]',
+      )
+    ) {
+      onClose();
+    }
+  };
 
   return (
     <>
       {open && (
         <button
-          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          className="fixed inset-0 z-30 bg-black/25 backdrop-blur-[1px] md:hidden"
           onClick={onClose}
           aria-label="关闭侧栏"
         />
       )}
       <aside
         className={cn(
-          "workspace-sidebar fixed inset-y-0 left-0 z-40 flex w-[300px] shrink-0 flex-col transition-transform md:relative md:z-0 md:translate-x-0",
+          "workspace-sidebar fixed inset-y-0 start-0 z-40 flex w-65 shrink-0 flex-col overflow-hidden border-e transition-[width,transform] duration-200 md:relative md:z-0 md:translate-x-0",
+          collapsed ? "md:w-12" : "md:w-65",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center justify-between px-5">
-          <a href="https://first.sub2image.cc.cd" className="flex items-center gap-2.5">
-            <MessageSquare className="size-5" strokeWidth={2.2} />
-            <strong className="text-sm font-semibold">SUB2 聊天</strong>
+        <div className="flex h-12 shrink-0 items-center justify-between px-2">
+          <a
+            href="https://first.sub2image.cc.cd"
+            className="flex min-w-0 items-center gap-2 overflow-hidden px-2 text-sm font-medium"
+          >
+            <MessageSquare className="size-5 shrink-0" strokeWidth={2.15} />
+            <span className="whitespace-nowrap text-foreground/90">SUB2 聊天</span>
           </a>
           <button
-            className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted md:hidden"
             onClick={onClose}
             aria-label="关闭侧栏"
           >
@@ -171,29 +124,46 @@ export function WorkspaceSidebar({ open, onClose }: { open: boolean; onClose: ()
           </button>
         </div>
 
-        <ThreadListPrimitive.Root className="flex min-h-0 flex-1 flex-col px-3">
-          <ThreadListPrimitive.New className="new-thread-button mb-3 flex w-full items-center gap-2 px-3 py-3 text-sm font-medium">
-            <Plus className="size-4" />
-            新聊天
-          </ThreadListPrimitive.New>
+        <ThreadListRoot
+          className={cn(
+            "relative min-h-0 flex-1 transition-[padding,width] duration-200",
+            collapsed ? "md:w-12 md:overflow-hidden md:px-2 md:pt-1" : "w-65 overflow-y-auto p-3",
+          )}
+          onClick={closeMobileSidebarAfterNavigation}
+        >
+          <ThreadListNew
+            className={cn(
+              "overflow-hidden transition-all duration-200",
+              collapsed
+                ? "md:w-8 md:gap-0 md:px-2 md:has-[>svg]:px-2"
+                : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+            )}
+            labelClassName={cn(
+              "overflow-hidden transition-all duration-200",
+              collapsed ? "md:max-w-0 md:opacity-0" : "max-w-24 opacity-100",
+            )}
+            title={collapsed ? "新聊天" : undefined}
+          />
+          <ThreadListItems
+            aria-hidden={collapsed}
+            inert={collapsed}
+            className={cn(
+              "transition-[opacity,transform] duration-150",
+              collapsed ? "md:pointer-events-none md:opacity-0" : "translate-x-0 opacity-100",
+            )}
+          />
+        </ThreadListRoot>
 
-          <div className="sidebar-search mb-2 flex items-center px-2.5">
-            <Search className="size-3.5 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索聊天"
-              className="min-w-0 flex-1 bg-transparent px-2 py-2 text-xs outline-none"
-            />
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-            <ThreadListPrimitive.Items>
-              {() => <ThreadItem query={query} />}
-            </ThreadListPrimitive.Items>
-          </div>
+        <div
+          aria-hidden={collapsed}
+          inert={collapsed}
+          className={cn(
+            "transition-opacity duration-150",
+            collapsed && "md:pointer-events-none md:opacity-0",
+          )}
+        >
           <HistoryTools />
-        </ThreadListPrimitive.Root>
+        </div>
       </aside>
     </>
   );

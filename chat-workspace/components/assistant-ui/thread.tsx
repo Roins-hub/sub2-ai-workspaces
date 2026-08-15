@@ -4,10 +4,12 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { ConnectionSettingsDialog } from "@/components/connection-settings-dialog";
 import { useChatSettings } from "@/components/chat-settings";
+import { usePluginSettings } from "@/components/plugin-settings";
 import { ModelSelect } from "@/components/model-select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +26,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { useAuiState as useStoreAuiState } from "@assistant-ui/store";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -37,6 +40,7 @@ import {
   CopyIcon,
   DownloadIcon,
   Globe2Icon,
+  ImageIcon,
   LightbulbIcon,
   MicIcon,
   MoreHorizontalIcon,
@@ -44,8 +48,10 @@ import {
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
+  WrenchIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { useEffect, useState, type FC, type KeyboardEventHandler, type ReactNode } from "react";
+import { WORKSPACE_PLUGINS } from "@/lib/plugins";
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
@@ -57,46 +63,47 @@ export const Thread: FC = () => {
 
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex h-full flex-col"
+      className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
       style={{
-        ["--thread-max-width" as string]: "64rem",
-        ["--composer-bg" as string]: "var(--composer-surface)",
-        ["--composer-radius" as string]: "2rem",
-        ["--composer-padding" as string]: "12px",
+        ["--thread-max-width" as string]: "44rem",
+        ["--composer-bg" as string]:
+          "color-mix(in oklab, var(--color-muted) 30%, var(--color-background))",
+        ["--composer-radius" as string]: "1.5rem",
+        ["--composer-padding" as string]: "8px",
       }}
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         data-slot="aui_thread-viewport"
-        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
+        className={cn(
+          "relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4",
+          isEmpty && "justify-center",
+        )}
       >
-        <div
+        <AuiIf condition={isNewChatView}>
+          <ThreadWelcome />
+        </AuiIf>
+
+        <div data-slot="aui_message-group" className="mb-14 flex flex-col gap-y-6 empty:hidden">
+          <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
+        </div>
+
+        <ThreadPrimitive.ViewportFooter
           className={cn(
-            "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-5 md:px-8",
-            isEmpty && "justify-center",
+            "aui-thread-viewport-footer bg-background mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible pb-4 md:pb-6",
+            !isEmpty && "sticky bottom-0 mt-auto rounded-t-(--composer-radius)",
           )}
         >
+          <ThreadScrollToBottom />
+          <Composer />
           <AuiIf condition={isNewChatView}>
-            <ThreadWelcome />
+            <div className="aui-thread-welcome-suggestions-shell min-h-19">
+              <AuiIf condition={(s) => s.composer.isEmpty}>
+                <ThreadSuggestions />
+              </AuiIf>
+            </div>
           </AuiIf>
-
-          <div data-slot="aui_message-group" className="mb-14 flex flex-col gap-y-6 empty:hidden">
-            <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
-          </div>
-
-          <ThreadPrimitive.ViewportFooter
-            className={cn(
-              "aui-thread-viewport-footer flex flex-col gap-5 overflow-visible pb-5 md:pb-8",
-              !isEmpty && "sticky bottom-0 mt-auto rounded-t-(--composer-radius)",
-            )}
-          >
-            <ThreadScrollToBottom />
-            <Composer />
-            <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
-              <ThreadSuggestions />
-            </AuiIf>
-          </ThreadPrimitive.ViewportFooter>
-        </div>
+        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
@@ -127,61 +134,350 @@ const ThreadScrollToBottom: FC = () => {
 
 const ThreadWelcome: FC = () => {
   return (
-    <div className="aui-thread-welcome-root mb-7 flex flex-col items-center px-4 text-center md:mb-9">
-      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-[clamp(1.75rem,4vw,2.35rem)] leading-tight font-semibold duration-200">
+    <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-(--thread-max-width) flex-col items-center px-4 text-center">
+      <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
         今天我能帮你什么？
       </h1>
     </div>
   );
 };
 
+type SuggestionGroup = {
+  label: string;
+  icon: ReactNode;
+  options: { label: string; prompt: string }[];
+};
+
+const SUGGESTION_GROUPS: SuggestionGroup[] = [
+  {
+    label: "天气",
+    icon: <CloudSunIcon />,
+    options: [
+      { label: "查询今天的天气", prompt: "帮我查询今天的天气，并给出出行建议" },
+      { label: "规划周末出行", prompt: "结合周末天气，帮我规划一个适合出行的安排" },
+    ],
+  },
+  {
+    label: "代码",
+    icon: <Code2Icon />,
+    options: [
+      { label: "解释一段代码", prompt: "帮我解释这段代码的逻辑和潜在问题" },
+      { label: "优化实现", prompt: "帮我分析并改进一段代码" },
+    ],
+  },
+  {
+    label: "写作",
+    icon: <PenLineIcon />,
+    options: [
+      { label: "润色文字", prompt: "帮我润色和改写一段文字" },
+      { label: "撰写说明", prompt: "根据我提供的信息，写一份清晰简洁的说明" },
+    ],
+  },
+  {
+    label: "分析",
+    icon: <ChartNoAxesColumnIncreasingIcon />,
+    options: [
+      { label: "拆解问题", prompt: "帮我分析一个问题，列出关键因素和结论" },
+      { label: "比较方案", prompt: "帮我比较几个方案的优缺点，并给出建议" },
+    ],
+  },
+  {
+    label: "头脑风暴",
+    icon: <LightbulbIcon />,
+    options: [
+      { label: "扩展想法", prompt: "围绕我的想法进行头脑风暴" },
+      { label: "列出创意", prompt: "围绕我给出的主题，提出五个可执行的创意" },
+    ],
+  },
+];
+
+const suggestionChipClass =
+  "aui-thread-welcome-suggestion text-foreground hover:bg-muted border-border/60 h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
+
 const ThreadSuggestions: FC = () => {
   const aui = useAui();
-  const suggestions = [
-    { label: "天气", prompt: "帮我查询今天的天气，并给出出行建议", icon: CloudSunIcon },
-    { label: "代码", prompt: "帮我分析并改进一段代码", icon: Code2Icon },
-    { label: "写作", prompt: "帮我润色和改写一段文字", icon: PenLineIcon },
-    {
-      label: "分析",
-      prompt: "帮我分析一个问题，列出关键因素和结论",
-      icon: ChartNoAxesColumnIncreasingIcon,
-    },
-    { label: "头脑风暴", prompt: "围绕我的想法进行头脑风暴", icon: LightbulbIcon },
-  ];
+  const [expandedLabel, setExpandedLabel] = useState<string | null>(null);
+  const expandedGroup = SUGGESTION_GROUPS.find((group) => group.label === expandedLabel);
+
+  const sendPrompt = (prompt: string) => {
+    if (aui.thread.getState().isRunning) return;
+    aui.thread.append({
+      content: [{ type: "text", text: prompt }],
+      runConfig: aui.composer.getState().runConfig,
+    });
+  };
 
   return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-wrap items-center justify-center gap-2 px-2">
-      {suggestions.map(({ label, prompt, icon: Icon }) => (
-        <button
-          key={label}
-          type="button"
-          onClick={() => aui.composer.setText(prompt)}
-          className="suggestion-chip flex items-center gap-2 px-4 py-2 text-sm"
-        >
-          <Icon className="size-4" />
-          {label}
-        </button>
-      ))}
+    <div className="aui-thread-welcome-suggestions flex w-full flex-col gap-2 px-4">
+      <div className="w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mx-auto flex w-max items-center gap-2">
+          {SUGGESTION_GROUPS.map((group) => (
+            <Button
+              key={group.label}
+              variant="ghost"
+              className={cn(suggestionChipClass, group.label === expandedLabel && "bg-muted")}
+              onClick={() => setExpandedLabel(group.label === expandedLabel ? null : group.label)}
+            >
+              {group.icon}
+              {group.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+      {expandedGroup && (
+        <div className="fade-in slide-in-from-top-1 animate-in w-full overflow-x-auto duration-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mx-auto flex w-max items-center gap-2">
+            {expandedGroup.options.map((option) => (
+              <Button
+                key={option.label}
+                variant="ghost"
+                className={suggestionChipClass}
+                onClick={() => sendPrompt(option.prompt)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
+type SlashCommandItem = {
+  id: string;
+  command: string;
+  label: string;
+  description: string;
+  source: "plugin" | "mcp";
+  sourceLabel: string;
+};
+
+const CommandBadge: FC<{ item: SlashCommandItem }> = ({ item }) => (
+  <span className="composer-command-badge">
+    <span>{item.command}</span>
+    {item.source === "mcp" ? <WrenchIcon aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
+  </span>
+);
+
+const SelectedCommandChip: FC<{ item: SlashCommandItem }> = ({ item }) => (
+  <span className="composer-command-badge">
+    {item.source === "mcp" ? <WrenchIcon aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
+    <span>{item.label}</span>
+  </span>
+);
+
 const Composer: FC = () => {
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+  const mcp = useStoreAuiState((s) => s.mcp);
+  const plugins = usePluginSettings();
+  const [activeCommand, setActiveCommand] = useState(0);
+  const [dismissedText, setDismissedText] = useState<string | null>(null);
+  const commandMatch = text.match(/^\/([^\s]*)$/);
+  const commandQuery = commandMatch?.[1] ?? null;
+  const pluginCommands: SlashCommandItem[] = WORKSPACE_PLUGINS.filter((plugin) =>
+    plugins.isEnabled(plugin.id),
+  ).map((plugin) => ({
+    id: plugin.id,
+    command: plugin.command,
+    label: plugin.name,
+    description: plugin.description,
+    source: "plugin",
+    sourceLabel: "内置插件",
+  }));
+  const mcpCommands: SlashCommandItem[] = mcp.servers
+    .filter((server) => server.connectionState === "connected")
+    .flatMap((server) =>
+      server.tools.map((tool) => ({
+        id: `${server.id}__${tool.name}`,
+        command: `/${tool.name}`,
+        label: tool.name,
+        description: tool.description?.trim() || "调用这个 MCP 工具",
+        source: "mcp" as const,
+        sourceLabel: server.name,
+      })),
+    );
+  const allCommands = [...pluginCommands, ...mcpCommands];
+  const normalizedQuery = commandQuery?.toLocaleLowerCase() ?? null;
+  const commands = allCommands.filter(
+    (item) =>
+      normalizedQuery !== null &&
+      (item.command.slice(1).toLocaleLowerCase().includes(normalizedQuery) ||
+        item.label.toLocaleLowerCase().includes(normalizedQuery)),
+  );
+  const visiblePluginCommands = commands.filter((item) => item.source === "plugin");
+  const visibleMcpCommands = commands.filter((item) => item.source === "mcp");
+  const leadingCommand = text.match(/^(\/[^\s]+)/)?.[1] ?? null;
+  const highlightedCommand = allCommands.some((item) => item.command === leadingCommand)
+    ? leadingCommand
+    : null;
+  const highlightedCommandItem = highlightedCommand
+    ? (allCommands.find((item) => item.command === highlightedCommand) ?? null)
+    : null;
+  const menuOpen = commandQuery !== null && dismissedText !== text;
+
+  useEffect(() => setActiveCommand(0), [commandQuery]);
+
+  const selectCommand = (command: string) => {
+    aui.composer.setText(`${command} `);
+    setDismissedText(null);
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLTextAreaElement>(".aui-composer-input")?.focus(),
+    );
+  };
+
+  const handleComposerKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (event) => {
+    if (!menuOpen) return;
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setDismissedText(text);
+      return;
+    }
+
+    if (commands.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveCommand((current) => (current + 1) % commands.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveCommand((current) => (current - 1 + commands.length) % commands.length);
+    } else if ((event.key === "Enter" || event.key === "Tab") && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      selectCommand(commands[activeCommand]?.command ?? commands[0].command);
+    }
+  };
+
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+      {menuOpen && (
+        <div
+          role="listbox"
+          aria-label="斜杠命令"
+          className="absolute right-0 bottom-full left-0 z-30 mb-2 overflow-hidden rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_color-mix(in_oklab,#000_18%,transparent)]"
+        >
+          <div className="flex items-center justify-between px-2.5 py-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground">斜杠命令</span>
+            <span className="text-[10px] text-muted-foreground">↑↓ 选择 · Enter 使用</span>
+          </div>
+          {commands.length > 0 ? (
+            <>
+              {visiblePluginCommands.length > 0 && (
+                <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-medium text-muted-foreground">
+                  内置插件
+                </div>
+              )}
+              {visiblePluginCommands.map((item) => {
+                const index = commands.indexOf(item);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeCommand}
+                    onMouseEnter={() => setActiveCommand(index)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectCommand(item.command)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted aria-selected:bg-muted"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
+                      <ImageIcon className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <CommandBadge item={item} />
+                        <span className="text-xs text-muted-foreground">{item.label}</span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        {item.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+
+              {visibleMcpCommands.length > 0 && (
+                <div className="mt-1 border-t px-2.5 pt-2.5 pb-1 text-[10px] font-medium text-muted-foreground">
+                  MCP 工具
+                </div>
+              )}
+              {visibleMcpCommands.map((item) => {
+                const index = commands.indexOf(item);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeCommand}
+                    onMouseEnter={() => setActiveCommand(index)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectCommand(item.command)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted aria-selected:bg-muted"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
+                      <WrenchIcon className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <CommandBadge item={item} />
+                        <span className="truncate text-xs text-muted-foreground">
+                          {item.sourceLabel}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        {item.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+              没有匹配的插件或已连接 MCP 工具。
+            </div>
+          )}
+        </div>
+      )}
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
-          className="composer-shell border-border data-[dragging=true]:border-foreground/50 flex w-full flex-col gap-3 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color,box-shadow] data-[dragging=true]:border-dashed"
+          className="composer-shell border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)] data-[dragging=true]:border-dashed dark:shadow-none"
         >
           <ComposerAttachments />
-          <ComposerPrimitive.Input
-            placeholder="发个消息……"
-            className="aui-composer-input placeholder:text-muted-foreground/75 max-h-40 min-h-14 w-full resize-none bg-transparent px-3 py-1 text-[17px] leading-relaxed outline-none"
-            rows={1}
-            autoFocus
-            aria-label="消息输入框"
-          />
+          <div className="relative">
+            {highlightedCommandItem && (
+              <div
+                data-slot="composer-command-highlight"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 max-h-32 min-h-10 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-1 text-base leading-6"
+              >
+                <SelectedCommandChip item={highlightedCommandItem} />
+                <span className="text-foreground">
+                  {text.slice(highlightedCommandItem.command.length)}
+                </span>
+              </div>
+            )}
+            <ComposerPrimitive.Input
+              placeholder="发个消息……"
+              className={cn(
+                "aui-composer-input caret-primary placeholder:text-muted-foreground/80 relative z-10 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none",
+                highlightedCommandItem &&
+                  "text-transparent selection:bg-sky-200/60 dark:selection:bg-sky-700/50",
+              )}
+              rows={1}
+              autoFocus
+              aria-label="消息输入框"
+              onKeyDown={handleComposerKeyDown}
+              onScroll={(event) => {
+                const mirror = event.currentTarget.previousElementSibling;
+                if (!(mirror instanceof HTMLElement)) return;
+                mirror.scrollTop = event.currentTarget.scrollTop;
+                mirror.scrollLeft = event.currentTarget.scrollLeft;
+              }}
+            />
+          </div>
           <ComposerAction />
         </div>
       </ComposerPrimitive.AttachmentDropzone>
@@ -193,8 +489,8 @@ const ComposerAction: FC = () => {
   const settings = useChatSettings();
 
   return (
-    <div className="aui-composer-action-wrapper relative flex min-h-9 items-center justify-between gap-3 px-1">
-      <div className="flex min-w-0 items-center gap-1.5">
+    <div className="aui-composer-action-wrapper relative flex items-center justify-between">
+      <div className="flex min-w-0 items-center gap-1">
         <ComposerAddAttachment />
         {settings.models.length > 0 ? (
           <ModelSelect
@@ -220,7 +516,7 @@ const ComposerAction: FC = () => {
           type="button"
           onClick={() => settings.setWebSearch(!settings.webSearch)}
           className={cn(
-            "web-search-button flex items-center gap-1.5 px-2 py-1.5 text-xs",
+            "web-search-button flex h-7 items-center gap-1.5 rounded-full px-2 text-xs",
             settings.webSearch && "web-search-active",
           )}
           aria-pressed={settings.webSearch}
@@ -244,7 +540,7 @@ const ComposerAction: FC = () => {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="aui-composer-dictate size-9 rounded-full"
+                className="aui-composer-dictate size-7 rounded-full"
                 aria-label="开始语音输入"
               >
                 <MicIcon className="aui-composer-dictate-icon size-4" />
@@ -275,7 +571,7 @@ const ComposerAction: FC = () => {
               type="button"
               variant="default"
               size="icon"
-              className="aui-composer-send size-10 rounded-full bg-primary text-primary-foreground"
+              className="aui-composer-send size-7 rounded-full"
               aria-label="发送消息"
             >
               <ArrowUpIcon className="aui-composer-send-icon size-4.5" />
@@ -288,7 +584,7 @@ const ComposerAction: FC = () => {
               type="button"
               variant="default"
               size="icon"
-              className="aui-composer-cancel size-10 rounded-full"
+              className="aui-composer-cancel size-7 rounded-full"
               aria-label="停止生成"
             >
               <SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
@@ -323,7 +619,7 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className="fade-in slide-in-from-bottom-1 animate-in relative mx-auto w-full max-w-(--thread-max-width) -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
       <div
         data-slot="aui_assistant-message-content"
@@ -334,7 +630,12 @@ const AssistantMessage: FC = () => {
             if (part.type === "text") {
               // Older builds rendered the loading dot as message content. Ignore it when
               // reopening a history entry so it cannot appear beside the new thinking state.
-              if (part.text.trim() === "●") return null;
+              if (
+                part.text.trim() === "●" ||
+                (part.text === "" && part.status?.type === "running")
+              ) {
+                return null;
+              }
               return <MarkdownText />;
             }
             if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
@@ -346,19 +647,15 @@ const AssistantMessage: FC = () => {
             s.message.isLast && s.message.status?.type === "running" && s.message.parts.length === 0
           }
         >
-          <div
+          <span
             data-slot="aui_assistant-message-indicator"
-            className="assistant-thinking"
+            className="text-muted-foreground inline-flex items-center gap-2 align-middle"
             role="status"
-            aria-label="助手正在思考"
+            aria-label="助手正在连接"
           >
-            <span className="assistant-thinking-label">正在思考</span>
-            <span className="assistant-thinking-dots" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-          </div>
+            <DotMatrix state="connecting" label="正在连接" />
+            <span className="text-sm">正在连接</span>
+          </span>
         </AuiIf>
         <MessageError />
       </div>
@@ -426,7 +723,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className="fade-in slide-in-from-bottom-1 animate-in mx-auto grid w-full max-w-(--thread-max-width) auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <UserMessageAttachments />
@@ -468,7 +765,7 @@ const EditComposer: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_edit-composer-wrapper"
-      className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className="mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
       <ComposerPrimitive.Root className="aui-edit-composer-root border-border/60 dark:border-muted-foreground/15 ms-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) border bg-(--composer-bg) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-none">
         <ComposerPrimitive.Input

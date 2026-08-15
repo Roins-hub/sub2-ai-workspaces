@@ -16,6 +16,8 @@
     "@assistant-ui/react": "latest",
     "@assistant-ui/react-ai-sdk": "latest",
     "@assistant-ui/react-markdown": "latest",
+    "@assistant-ui/react-mcp": "^0.1.12",
+    "@assistant-ui/store": "^0.3.9",
     "@base-ui/react": "^1.7.0",
     "@lobehub/icons": "^5.16.0",
     "ai": "^7.0.56",

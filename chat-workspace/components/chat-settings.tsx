@@ -20,8 +20,6 @@ type ChatSettingsValue = {
   loadError: string;
   webSearch: boolean;
   setWebSearch: (enabled: boolean) => void;
-  tavilyApiKey: string;
-  setTavilyApiKey: (key: string) => void;
 };
 
 const ChatSettingsContext = createContext<ChatSettingsValue | null>(null);
@@ -29,7 +27,6 @@ const ChatSettingsContext = createContext<ChatSettingsValue | null>(null);
 const keyName = (provider: ProviderId) => `sub2chat:key:${provider}`;
 const rememberName = (provider: ProviderId) => `sub2chat:remember:${provider}`;
 const modelName = (provider: ProviderId) => `sub2chat:model:${provider}`;
-const TAVILY_KEY_NAME = "sub2chat:tavily-key";
 
 export function ChatSettingsProvider({ children }: { children: React.ReactNode }) {
   const [provider, setProviderState] = useState<ProviderId>("hhl");
@@ -42,7 +39,6 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [loadError, setLoadError] = useState("");
   const [webSearch, setWebSearchState] = useState(false);
-  const [tavilyApiKey, setTavilyApiKeyState] = useState("");
 
   const hydrateProvider = useCallback((next: ProviderId) => {
     const remembered = localStorage.getItem(rememberName(next)) === "true";
@@ -63,7 +59,6 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
     setProviderState(next);
     hydrateProvider(next);
     setWebSearchState(localStorage.getItem("sub2chat:web-search") === "true");
-    setTavilyApiKeyState(sessionStorage.getItem(TAVILY_KEY_NAME) ?? "");
   }, [hydrateProvider]);
 
   const setProvider = (next: ProviderId) => {
@@ -98,11 +93,6 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   const setWebSearch = (enabled: boolean) => {
     setWebSearchState(enabled);
     localStorage.setItem("sub2chat:web-search", String(enabled));
-  };
-
-  const setTavilyApiKey = (key: string) => {
-    setTavilyApiKeyState(key);
-    sessionStorage.setItem(TAVILY_KEY_NAME, key);
   };
 
   const loadModels = async () => {
@@ -149,20 +139,8 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
       loadError,
       webSearch,
       setWebSearch,
-      tavilyApiKey,
-      setTavilyApiKey,
     }),
-    [
-      provider,
-      apiKey,
-      rememberKey,
-      model,
-      modelsByProvider,
-      loadState,
-      loadError,
-      webSearch,
-      tavilyApiKey,
-    ],
+    [provider, apiKey, rememberKey, model, modelsByProvider, loadState, loadError, webSearch],
   );
 
   return <ChatSettingsContext.Provider value={value}>{children}</ChatSettingsContext.Provider>;

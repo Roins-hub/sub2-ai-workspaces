@@ -100,6 +100,19 @@ export default function ImageGenerator() {
     generatedAt,
   } = useImageGenerator()
 
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const hashPrompt = new URLSearchParams(url.hash.slice(1)).get('prompt')
+    const sharedPrompt = (url.searchParams.get('prompt') ?? hashPrompt)?.trim()
+    if (!sharedPrompt) return
+
+    setGenerationMode('generate')
+    setPrompt(sharedPrompt)
+    url.searchParams.delete('prompt')
+    url.hash = ''
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  }, [setGenerationMode, setPrompt])
+
   return (
     <div
       className={`zenith-app min-h-screen transition-colors duration-300 ${

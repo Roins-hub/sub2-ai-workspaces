@@ -70,27 +70,27 @@
   --radius: 0.625rem;
   --font-sans-app: "Segoe UI Variable", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono-app: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
-  --background: #ececec;
+  --background: #ffffff;
   --foreground: #171717;
-  --card: #f7f7f7;
+  --card: #ffffff;
   --card-foreground: #171717;
   --popover: #ffffff;
   --popover-foreground: #171717;
   --primary: #202020;
   --primary-foreground: #ffffff;
-  --secondary: #e7e7e7;
+  --secondary: #f4f4f5;
   --secondary-foreground: #202020;
-  --muted: #e1e1e1;
-  --muted-foreground: #777777;
-  --accent: #dedede;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
   --accent-foreground: #202020;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #d2d2d2;
-  --input: #c7c7c7;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
   --ring: #6f6f6f;
-  --sidebar: #e7e7e7;
-  --chat-panel: #f3f3f3;
-  --composer-surface: #ededed;
+  --sidebar: #fafafa;
+  --chat-panel: #ffffff;
+  --composer-surface: #fafafa;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -159,23 +159,20 @@
 
   .workspace-frame {
     border: 1px solid var(--border);
-    border-radius: 1.5rem;
-    background: var(--sidebar);
+    border-radius: 1rem;
+    background: color-mix(in oklab, var(--muted) 30%, var(--background));
   }
 
   .workspace-sidebar {
-    background: var(--sidebar);
+    background: color-mix(in oklab, var(--muted) 30%, var(--background));
   }
 
   .chat-panel {
-    margin: 0.75rem;
-    margin-left: 0;
-    border-radius: 1.15rem;
-    background: var(--chat-panel);
+    background: var(--background);
   }
 
   .workspace-header {
-    background: var(--chat-panel);
+    background: var(--background);
   }
 
   .new-thread-button {
@@ -281,20 +278,51 @@
   }
 
   .aui-thread-viewport-footer {
-    background: var(--chat-panel);
+    background: var(--background);
   }
 
   .composer-shell {
     box-shadow:
-      0 12px 30px color-mix(in oklab, var(--foreground) 7%, transparent),
+      0 4px 16px -8px color-mix(in oklab, var(--foreground) 12%, transparent),
       0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
   }
 
   .composer-shell:focus-within {
-    border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+    border-color: var(--border);
     box-shadow:
-      0 14px 34px color-mix(in oklab, var(--foreground) 9%, transparent),
-      0 0 0 1px color-mix(in oklab, var(--foreground) 8%, transparent);
+      0 6px 24px -8px color-mix(in oklab, var(--foreground) 14%, transparent),
+      0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent);
+  }
+
+  .composer-command-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid color-mix(in oklab, #0284c7 24%, var(--border));
+    border-radius: 0.55rem;
+    background: color-mix(in oklab, #e0f2fe 72%, var(--background));
+    padding: 2px 7px 2px 8px;
+    color: #0284c7;
+    font-size: 0.875rem;
+    font-weight: 650;
+    line-height: 1.35rem;
+    white-space: nowrap;
+    vertical-align: middle;
+    box-shadow: 0 1px 2px color-mix(in oklab, #0284c7 8%, transparent);
+  }
+
+  .composer-command-badge svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+    stroke-width: 2.25;
+  }
+
+  .dark .composer-command-badge {
+    border-color: color-mix(in oklab, #38bdf8 30%, var(--border));
+    background: color-mix(in oklab, #075985 42%, var(--background));
+    color: #38bdf8;
+    box-shadow: none;
   }
 
   .suggestion-chip {
@@ -348,8 +376,8 @@
   }
 
   .model-select-popup {
-    width: max(var(--anchor-width), 27rem);
-    max-width: min(27rem, calc(100vw - 1.5rem));
+    width: max(var(--anchor-width), 18rem);
+    max-width: min(18rem, calc(100vw - 1.5rem));
     border: 1px solid var(--border);
     border-radius: 0.75rem;
     background: var(--popover);
