@@ -344,29 +344,22 @@
     stroke-width: 2.25;
   }
 
-  .composer-command-suffix {
-    display: inline-block;
-    margin-left: 0.5rem;
+  .composer-command-token {
+    position: relative;
+    z-index: 1;
+    background: var(--composer-bg);
+    user-select: none;
+    vertical-align: baseline;
   }
 
-  .composer-command-caret {
-    display: inline-block;
-    width: 1.5px;
-    height: 1.35em;
-    margin-left: 2px;
-    border-radius: 999px;
-    background: currentColor;
-    vertical-align: text-bottom;
-    animation: composer-caret-blink 1s steps(2, jump-none) infinite;
+  .composer-command-token::after {
+    content: attr(data-label);
   }
 
-  .composer-command-caret-after-chip {
-    margin-left: 0.5rem;
-  }
-
-  .composer-input-command-active {
-    /* The mirrored command layer owns the caret while a command chip is active. */
-    caret-color: transparent !important;
+  .aui-composer-input:empty::before {
+    color: color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+    content: attr(data-placeholder);
+    pointer-events: none;
   }
 
   .dark .composer-command-badge {
@@ -374,18 +367,6 @@
     background: color-mix(in oklab, #075985 42%, var(--background));
     color: #38bdf8;
     box-shadow: none;
-  }
-
-  @keyframes composer-caret-blink {
-    0%,
-    45% {
-      opacity: 1;
-    }
-
-    46%,
-    100% {
-      opacity: 0;
-    }
   }
 
   .suggestion-chip {

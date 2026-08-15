@@ -23,6 +23,7 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  unstable_useComposerInput,
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
@@ -54,8 +55,10 @@ import {
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
+  type ClipboardEventHandler,
   type CSSProperties,
   type FC,
   type KeyboardEventHandler,
@@ -311,15 +314,176 @@ const SelectedCommandChip: FC<{ item: SlashCommandItem }> = ({ item }) => (
   </span>
 );
 
+const commandIconMarkup = (source: SlashCommandItem["source"]) =>
+  source === "mcp"
+    ? '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/><path d="m11 11 2 2"/></svg>'
+    : '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+
+const escapeHtml = (value: string) =>
+  value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ??
+      character,
+  );
+
+const editableNodeLength = (node: Node): number => {
+  if (node instanceof HTMLElement && node.dataset.commandToken) {
+    return node.dataset.commandToken.length;
+  }
+  if (node.nodeType === Node.TEXT_NODE) return node.nodeValue?.length ?? 0;
+  if (node instanceof HTMLBRElement) return 1;
+  return Array.from(node.childNodes).reduce((total, child) => total + editableNodeLength(child), 0);
+};
+
+const editableText = (root: HTMLElement) => {
+  const walk = (node: Node): string => {
+    if (node instanceof HTMLElement && node.dataset.commandToken) {
+      return node.dataset.commandToken;
+    }
+    if (node.nodeType === Node.TEXT_NODE) return node.nodeValue ?? "";
+    if (node instanceof HTMLBRElement) return "\n";
+    return Array.from(node.childNodes).map(walk).join("");
+  };
+  return walk(root);
+};
+
+const selectionTextOffset = (root: HTMLElement, node: Node, offset: number) => {
+  let total = 0;
+  let found = false;
+
+  const walk = (current: Node): void => {
+    if (found) return;
+    if (current === node) {
+      if (current.nodeType === Node.TEXT_NODE) total += offset;
+      else
+        total += Array.from(current.childNodes)
+          .slice(0, offset)
+          .reduce((sum, child) => sum + editableNodeLength(child), 0);
+      found = true;
+      return;
+    }
+    if (current instanceof HTMLElement && current.dataset.commandToken) {
+      total += current.dataset.commandToken.length;
+      return;
+    }
+    for (const child of Array.from(current.childNodes)) walk(child);
+  };
+
+  walk(root);
+  return found ? total : editableNodeLength(root);
+};
+
+const setEditableCaret = (root: HTMLElement, targetOffset: number) => {
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  let total = 0;
+  let target: { node: Node; offset: number } | null = null;
+  const walk = (current: Node): void => {
+    if (target) return;
+    if (current instanceof HTMLElement && current.dataset.commandToken) {
+      const length = current.dataset.commandToken.length;
+      if (targetOffset <= total)
+        target = { node: root, offset: Array.from(root.childNodes).indexOf(current) };
+      else if (targetOffset < total + length) {
+        target = {
+          node: root,
+          offset:
+            Array.from(root.childNodes).indexOf(current) +
+            (targetOffset - total >= length / 2 ? 1 : 0),
+        };
+      }
+      total += length;
+      return;
+    }
+    if (current.nodeType === Node.TEXT_NODE) {
+      const length = current.nodeValue?.length ?? 0;
+      if (targetOffset <= total + length)
+        target = { node: current, offset: Math.max(0, targetOffset - total) };
+      total += length;
+      return;
+    }
+    if (current instanceof HTMLBRElement) {
+      if (targetOffset <= total)
+        target = { node: root, offset: Array.from(root.childNodes).indexOf(current) };
+      total += 1;
+      return;
+    }
+    for (const child of Array.from(current.childNodes)) walk(child);
+  };
+  walk(root);
+  target ??= { node: root, offset: root.childNodes.length };
+  const range = document.createRange();
+  range.setStart(target.node, target.offset);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+};
+
+const renderEditableValue = (root: HTMLElement, value: string, item: SlashCommandItem | null) => {
+  root.replaceChildren();
+  if (!item || !value.startsWith(item.command)) {
+    root.append(document.createTextNode(value));
+    return;
+  }
+
+  const token = document.createElement("span");
+  token.className = "composer-command-badge composer-command-token";
+  token.contentEditable = "false";
+  token.dataset.commandToken = item.command;
+  token.dataset.label = item.label;
+  token.setAttribute("aria-label", item.command);
+  token.innerHTML = `<span class="sr-only">${escapeHtml(item.command)}</span>${commandIconMarkup(item.source)}`;
+  root.append(token, document.createTextNode(value.slice(item.command.length)));
+};
+
+const ComposerEditableInput: FC<{
+  value: string;
+  commandItem: SlashCommandItem | null;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onKeyDown: KeyboardEventHandler<HTMLDivElement>;
+  onPaste: ClipboardEventHandler<HTMLDivElement>;
+  inputRef: React.RefObject<HTMLDivElement | null>;
+}> = ({ value, commandItem, disabled, onChange, onKeyDown, onPaste, inputRef }) => {
+  useLayoutEffect(() => {
+    const root = inputRef.current;
+    if (!root || editableText(root) === value) return;
+    const hadFocus = document.activeElement === root;
+    renderEditableValue(root, value, commandItem);
+    if (hadFocus) setEditableCaret(root, value.length);
+  }, [commandItem, inputRef, value]);
+
+  return (
+    <div
+      ref={inputRef}
+      role="textbox"
+      aria-label="消息输入框"
+      aria-multiline="true"
+      aria-placeholder="发个消息……"
+      contentEditable={!disabled}
+      suppressContentEditableWarning
+      spellCheck
+      tabIndex={disabled ? -1 : 0}
+      className="aui-composer-input caret-primary relative z-10 max-h-32 min-h-10 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-2.5 py-1 text-base leading-6 outline-none placeholder:text-muted-foreground/80"
+      data-placeholder="发个消息……"
+      onInput={(event) => onChange(editableText(event.currentTarget))}
+      onKeyDown={onKeyDown}
+      onPaste={onPaste}
+    />
+  );
+};
+
 const Composer: FC = () => {
   const aui = useAui();
   const text = useAuiState((s) => s.composer.text);
+  const composerInput = unstable_useComposerInput();
+  const inputRef = useRef<HTMLDivElement>(null);
   const isNewChat = useAuiState(isNewChatView);
   const allCommands = useSlashCommands();
   const [activeCommand, setActiveCommand] = useState(0);
   const [dismissedText, setDismissedText] = useState<string | null>(null);
-  const [composerFocused, setComposerFocused] = useState(false);
-  const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
   const commandMatch = text.match(/^\/([^\s]*)$/);
   const commandQuery = commandMatch?.[1] ?? null;
   const normalizedQuery = commandQuery?.toLocaleLowerCase() ?? null;
@@ -338,84 +502,97 @@ const Composer: FC = () => {
   const highlightedCommandItem = highlightedCommand
     ? (allCommands.find((item) => item.command === highlightedCommand) ?? null)
     : null;
-  const highlightedCommandSuffix = highlightedCommandItem
-    ? text.slice(highlightedCommandItem.command.length)
-    : "";
-  const visualCommandSuffix = highlightedCommandSuffix.startsWith(" ")
-    ? highlightedCommandSuffix.slice(1)
-    : highlightedCommandSuffix;
-  const showCommandCaret =
-    highlightedCommandItem &&
-    composerFocused &&
-    (selectionEnd === null || selectionEnd >= text.length);
   const menuOpen = commandQuery !== null && dismissedText !== text;
 
   useEffect(() => setActiveCommand(0), [commandQuery]);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const selectCommand = (command: string) => {
     const nextText = `${command} `;
     aui.composer.setText(nextText);
-    setSelectionEnd(nextText.length);
     setDismissedText(null);
     requestAnimationFrame(() => {
-      const input = document.querySelector<HTMLTextAreaElement>(".aui-composer-input");
-      input?.focus();
-      if (input) {
-        input.selectionStart = nextText.length;
-        input.selectionEnd = nextText.length;
-      }
+      const input = inputRef.current;
+      if (!input) return;
+      renderEditableValue(
+        input,
+        nextText,
+        allCommands.find((item) => item.command === command) ?? null,
+      );
+      input.focus();
+      setEditableCaret(input, nextText.length);
     });
   };
 
-  const syncSelection = (event: { currentTarget: HTMLTextAreaElement }) => {
-    setSelectionEnd(event.currentTarget.selectionEnd);
-  };
-
-  const handleComposerKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (event) => {
+  const handleComposerKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) => {
     if (
       highlightedCommandItem &&
       !event.nativeEvent.isComposing &&
       (event.key === "Backspace" || event.key === "Delete")
     ) {
-      const selectionStart = event.currentTarget.selectionStart;
-      const selectionEnd = event.currentTarget.selectionEnd;
+      const selection = window.getSelection();
+      if (!selection || !inputRef.current) return;
+      const selectionStart = selectionTextOffset(
+        inputRef.current,
+        selection.anchorNode ?? inputRef.current,
+        selection.anchorOffset,
+      );
+      const selectionEnd = selectionTextOffset(
+        inputRef.current,
+        selection.focusNode ?? inputRef.current,
+        selection.focusOffset,
+      );
+      const rangeStart = Math.min(selectionStart, selectionEnd);
+      const rangeEnd = Math.max(selectionStart, selectionEnd);
       const commandEnd = highlightedCommandItem.command.length;
       const suffixStart = text[commandEnd] === " " ? commandEnd + 1 : commandEnd;
       const deletionStart =
-        selectionStart === selectionEnd && event.key === "Backspace"
-          ? Math.max(0, selectionStart - 1)
-          : selectionStart;
+        rangeStart === rangeEnd && event.key === "Backspace"
+          ? Math.max(0, rangeStart - 1)
+          : rangeStart;
       const deletionEnd =
-        selectionStart === selectionEnd && event.key === "Delete"
-          ? Math.min(text.length, selectionEnd + 1)
-          : selectionEnd;
+        rangeStart === rangeEnd && event.key === "Delete"
+          ? Math.min(text.length, rangeEnd + 1)
+          : rangeEnd;
       const deletesCommand = deletionStart < suffixStart && deletionEnd > 0;
 
       if (deletesCommand) {
         event.preventDefault();
-        const nextText = text.slice(Math.max(suffixStart, selectionEnd));
+        const nextText = text.slice(Math.max(suffixStart, deletionEnd));
         aui.composer.setText(nextText);
-        setSelectionEnd(0);
         setDismissedText(null);
         requestAnimationFrame(() => {
-          const input = document.querySelector<HTMLTextAreaElement>(".aui-composer-input");
-          input?.focus();
-          if (input) {
-            input.selectionStart = 0;
-            input.selectionEnd = 0;
-          }
+          const input = inputRef.current;
+          if (!input) return;
+          renderEditableValue(input, nextText, null);
+          input.focus();
+          setEditableCaret(input, 0);
         });
         return;
       }
     }
 
-    if (!menuOpen) return;
-
     if (event.key === "Escape") {
-      event.preventDefault();
-      setDismissedText(text);
+      if (menuOpen) {
+        event.preventDefault();
+        setDismissedText(text);
+      } else if (aui.composer.getState().canCancel) {
+        event.preventDefault();
+        aui.composer.cancel();
+      }
       return;
     }
+
+    if (event.key === "Enter" && !event.shiftKey && !menuOpen) {
+      event.preventDefault();
+      if (composerInput.canSend) composerInput.send();
+      return;
+    }
+
+    if (!menuOpen) return;
 
     if (commands.length === 0) return;
     if (event.key === "ArrowDown") {
@@ -428,6 +605,21 @@ const Composer: FC = () => {
       event.preventDefault();
       selectCommand(commands[activeCommand]?.command ?? commands[0].command);
     }
+  };
+
+  const handlePaste: ClipboardEventHandler<HTMLDivElement> = async (event) => {
+    const files = Array.from(event.clipboardData.files ?? []);
+    if (!aui.thread.getState().capabilities.attachments || files.length === 0) return;
+    event.preventDefault();
+    await Promise.all(
+      files.map(async (file) => {
+        try {
+          await aui.composer.addAttachment(file);
+        } catch {
+          // Attachment errors are emitted by the composer runtime.
+        }
+      }),
+    );
   };
 
   return (
@@ -535,51 +727,14 @@ const Composer: FC = () => {
         >
           <ComposerAttachments />
           <div className="relative">
-            {highlightedCommandItem && (
-              <div
-                data-slot="composer-command-highlight"
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 max-h-32 min-h-10 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-1 text-base leading-6"
-              >
-                <SelectedCommandChip item={highlightedCommandItem} />
-                {visualCommandSuffix && (
-                  <span className="composer-command-suffix text-foreground">
-                    {visualCommandSuffix}
-                  </span>
-                )}
-                {showCommandCaret && (
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "composer-command-caret",
-                      !visualCommandSuffix && "composer-command-caret-after-chip",
-                    )}
-                  />
-                )}
-              </div>
-            )}
-            <ComposerPrimitive.Input
-              placeholder="发个消息……"
-              className={cn(
-                "aui-composer-input caret-primary placeholder:text-muted-foreground/80 relative z-10 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none",
-                highlightedCommandItem &&
-                  "composer-input-command-active text-transparent selection:bg-sky-200/60 dark:selection:bg-sky-700/50",
-              )}
-              rows={1}
-              autoFocus
-              aria-label="消息输入框"
-              onFocus={() => setComposerFocused(true)}
-              onBlur={() => setComposerFocused(false)}
-              onClick={syncSelection}
-              onKeyUp={syncSelection}
+            <ComposerEditableInput
+              value={text}
+              commandItem={highlightedCommandItem}
+              disabled={composerInput.isDisabled}
+              onChange={composerInput.setText}
               onKeyDown={handleComposerKeyDown}
-              onSelect={syncSelection}
-              onScroll={(event) => {
-                const mirror = event.currentTarget.previousElementSibling;
-                if (!(mirror instanceof HTMLElement)) return;
-                mirror.scrollTop = event.currentTarget.scrollTop;
-                mirror.scrollLeft = event.currentTarget.scrollLeft;
-              }}
+              onPaste={handlePaste}
+              inputRef={inputRef}
             />
           </div>
           <ComposerAction />
