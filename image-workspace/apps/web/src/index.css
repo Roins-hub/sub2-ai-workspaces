@@ -86,6 +86,8 @@
   --zenith-slider-2: #38bdf8;
   --zenith-slider-3: #0ea5e9;
   --zenith-slider-4: #0284c7;
+  --zenith-loading-accent: #0ea5e9;
+  --zenith-loading-track: #dbeafe;
 }
 
 .zenith-app.dark {
@@ -93,6 +95,13 @@
   --zenith-slider-2: #fb923c;
   --zenith-slider-3: #f97316;
   --zenith-slider-4: #ea580c;
+  --zenith-loading-accent: #f97316;
+  --zenith-loading-track: #3f3f46;
+}
+
+.zenith-generation-spinner {
+  border-color: var(--zenith-loading-track);
+  border-top-color: var(--zenith-loading-accent);
 }
 
 .zenith-app.dark .bg-zinc-50,

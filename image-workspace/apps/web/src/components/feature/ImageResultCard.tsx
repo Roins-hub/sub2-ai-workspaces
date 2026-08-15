@@ -249,7 +249,7 @@ export function ImageResultCard({
               <div className="aspect-square flex flex-col items-center justify-center text-zinc-600">
                 {loading ? (
                   <>
-                    <div className="w-12 h-12 border-4 border-zinc-800 border-t-sky-500 rounded-full animate-spin mb-3" />
+                    <div className="zenith-generation-spinner mb-3 h-12 w-12 animate-spin rounded-full border-4" />
                     <span className="text-zinc-400 font-mono text-lg">{elapsed.toFixed(1)}s</span>
                     <span className="text-zinc-600 text-sm mt-1">{t('result.creating')}</span>
                   </>
