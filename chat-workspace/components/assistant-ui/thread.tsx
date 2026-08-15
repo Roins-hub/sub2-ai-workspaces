@@ -270,6 +270,7 @@ const SelectedCommandChip: FC<{ item: SlashCommandItem }> = ({ item }) => (
 const Composer: FC = () => {
   const aui = useAui();
   const text = useAuiState((s) => s.composer.text);
+  const isNewChat = useAuiState(isNewChatView);
   const mcp = useStoreAuiState((s) => s.mcp);
   const plugins = usePluginSettings();
   const [activeCommand, setActiveCommand] = useState(0);
@@ -378,89 +379,96 @@ const Composer: FC = () => {
         <div
           role="listbox"
           aria-label="斜杠命令"
-          className="absolute right-0 bottom-full left-0 z-30 mb-2 overflow-hidden rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_color-mix(in_oklab,#000_18%,transparent)]"
+          className={cn(
+            "absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-col overflow-hidden rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_color-mix(in_oklab,#000_18%,transparent)]",
+            isNewChat
+              ? "max-h-[min(16rem,calc(50dvh-4rem))]"
+              : "max-h-[min(32rem,calc(100dvh-11rem))]",
+          )}
         >
-          <div className="flex items-center justify-between px-2.5 py-1.5">
+          <div className="flex shrink-0 items-center justify-between px-2.5 py-1.5">
             <span className="text-[11px] font-medium text-muted-foreground">斜杠命令</span>
             <span className="text-[10px] text-muted-foreground">↑↓ 选择 · Enter 使用</span>
           </div>
-          {commands.length > 0 ? (
-            <>
-              {visiblePluginCommands.length > 0 && (
-                <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-medium text-muted-foreground">
-                  内置插件
-                </div>
-              )}
-              {visiblePluginCommands.map((item) => {
-                const index = commands.indexOf(item);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeCommand}
-                    onMouseEnter={() => setActiveCommand(index)}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectCommand(item.command)}
-                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted aria-selected:bg-muted"
-                  >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
-                      <ImageIcon className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <CommandBadge item={item} />
-                        <span className="text-xs text-muted-foreground">{item.label}</span>
+          <div className="slash-command-scroll min-h-0 overflow-y-auto pr-1">
+            {commands.length > 0 ? (
+              <>
+                {visiblePluginCommands.length > 0 && (
+                  <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-medium text-muted-foreground">
+                    内置插件
+                  </div>
+                )}
+                {visiblePluginCommands.map((item) => {
+                  const index = commands.indexOf(item);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={index === activeCommand}
+                      onMouseEnter={() => setActiveCommand(index)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectCommand(item.command)}
+                      className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted aria-selected:bg-muted"
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
+                        <ImageIcon className="size-4" />
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                        {item.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-
-              {visibleMcpCommands.length > 0 && (
-                <div className="mt-1 border-t px-2.5 pt-2.5 pb-1 text-[10px] font-medium text-muted-foreground">
-                  MCP 工具
-                </div>
-              )}
-              {visibleMcpCommands.map((item) => {
-                const index = commands.indexOf(item);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeCommand}
-                    onMouseEnter={() => setActiveCommand(index)}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectCommand(item.command)}
-                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted aria-selected:bg-muted"
-                  >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
-                      <WrenchIcon className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <CommandBadge item={item} />
-                        <span className="truncate text-xs text-muted-foreground">
-                          {item.sourceLabel}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <CommandBadge item={item} />
+                          <span className="text-xs text-muted-foreground">{item.label}</span>
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {item.description}
                         </span>
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                        {item.description}
+                    </button>
+                  );
+                })}
+
+                {visibleMcpCommands.length > 0 && (
+                  <div className="mt-1 border-t px-2.5 pt-2.5 pb-1 text-[10px] font-medium text-muted-foreground">
+                    MCP 工具
+                  </div>
+                )}
+                {visibleMcpCommands.map((item) => {
+                  const index = commands.indexOf(item);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={index === activeCommand}
+                      onMouseEnter={() => setActiveCommand(index)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectCommand(item.command)}
+                      className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted aria-selected:bg-muted"
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border">
+                        <WrenchIcon className="size-4" />
                       </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </>
-          ) : (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-              没有匹配的插件或已连接 MCP 工具。
-            </div>
-          )}
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <CommandBadge item={item} />
+                          <span className="truncate text-xs text-muted-foreground">
+                            {item.sourceLabel}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                          {item.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </>
+            ) : (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                没有匹配的插件或已连接 MCP 工具。
+              </div>
+            )}
+          </div>
         </div>
       )}
       <ComposerPrimitive.AttachmentDropzone asChild>
