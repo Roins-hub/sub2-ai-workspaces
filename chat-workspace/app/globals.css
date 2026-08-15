@@ -318,11 +318,47 @@
     stroke-width: 2.25;
   }
 
+  .composer-command-suffix {
+    display: inline-block;
+    margin-left: 0.5rem;
+  }
+
+  .composer-command-caret {
+    display: inline-block;
+    width: 1.5px;
+    height: 1.35em;
+    margin-left: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    vertical-align: text-bottom;
+    animation: composer-caret-blink 1s steps(2, jump-none) infinite;
+  }
+
+  .composer-command-caret-after-chip {
+    margin-left: 0.5rem;
+  }
+
+  .composer-input-command-active {
+    caret-color: transparent;
+  }
+
   .dark .composer-command-badge {
     border-color: color-mix(in oklab, #38bdf8 30%, var(--border));
     background: color-mix(in oklab, #075985 42%, var(--background));
     color: #38bdf8;
     box-shadow: none;
+  }
+
+  @keyframes composer-caret-blink {
+    0%,
+    45% {
+      opacity: 1;
+    }
+
+    46%,
+    100% {
+      opacity: 0;
+    }
   }
 
   .suggestion-chip {

@@ -274,6 +274,8 @@ const Composer: FC = () => {
   const plugins = usePluginSettings();
   const [activeCommand, setActiveCommand] = useState(0);
   const [dismissedText, setDismissedText] = useState<string | null>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
+  const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
   const commandMatch = text.match(/^\/([^\s]*)$/);
   const commandQuery = commandMatch?.[1] ?? null;
   const pluginCommands: SlashCommandItem[] = WORKSPACE_PLUGINS.filter((plugin) =>
@@ -315,16 +317,37 @@ const Composer: FC = () => {
   const highlightedCommandItem = highlightedCommand
     ? (allCommands.find((item) => item.command === highlightedCommand) ?? null)
     : null;
+  const highlightedCommandSuffix = highlightedCommandItem
+    ? text.slice(highlightedCommandItem.command.length)
+    : "";
+  const visualCommandSuffix = highlightedCommandSuffix.startsWith(" ")
+    ? highlightedCommandSuffix.slice(1)
+    : highlightedCommandSuffix;
+  const showCommandCaret =
+    highlightedCommandItem &&
+    composerFocused &&
+    (selectionEnd === null || selectionEnd >= text.length);
   const menuOpen = commandQuery !== null && dismissedText !== text;
 
   useEffect(() => setActiveCommand(0), [commandQuery]);
 
   const selectCommand = (command: string) => {
-    aui.composer.setText(`${command} `);
+    const nextText = `${command} `;
+    aui.composer.setText(nextText);
+    setSelectionEnd(nextText.length);
     setDismissedText(null);
-    requestAnimationFrame(() =>
-      document.querySelector<HTMLTextAreaElement>(".aui-composer-input")?.focus(),
-    );
+    requestAnimationFrame(() => {
+      const input = document.querySelector<HTMLTextAreaElement>(".aui-composer-input");
+      input?.focus();
+      if (input) {
+        input.selectionStart = nextText.length;
+        input.selectionEnd = nextText.length;
+      }
+    });
+  };
+
+  const syncSelection = (event: { currentTarget: HTMLTextAreaElement }) => {
+    setSelectionEnd(event.currentTarget.selectionEnd);
   };
 
   const handleComposerKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = (event) => {
@@ -454,9 +477,20 @@ const Composer: FC = () => {
                 className="pointer-events-none absolute inset-0 max-h-32 min-h-10 overflow-hidden whitespace-pre-wrap break-words px-2.5 py-1 text-base leading-6"
               >
                 <SelectedCommandChip item={highlightedCommandItem} />
-                <span className="text-foreground">
-                  {text.slice(highlightedCommandItem.command.length)}
-                </span>
+                {visualCommandSuffix && (
+                  <span className="composer-command-suffix text-foreground">
+                    {visualCommandSuffix}
+                  </span>
+                )}
+                {showCommandCaret && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "composer-command-caret",
+                      !visualCommandSuffix && "composer-command-caret-after-chip",
+                    )}
+                  />
+                )}
               </div>
             )}
             <ComposerPrimitive.Input
@@ -464,12 +498,17 @@ const Composer: FC = () => {
               className={cn(
                 "aui-composer-input caret-primary placeholder:text-muted-foreground/80 relative z-10 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none",
                 highlightedCommandItem &&
-                  "text-transparent selection:bg-sky-200/60 dark:selection:bg-sky-700/50",
+                  "composer-input-command-active text-transparent selection:bg-sky-200/60 dark:selection:bg-sky-700/50",
               )}
               rows={1}
               autoFocus
               aria-label="消息输入框"
+              onFocus={() => setComposerFocused(true)}
+              onBlur={() => setComposerFocused(false)}
+              onClick={syncSelection}
+              onKeyUp={syncSelection}
               onKeyDown={handleComposerKeyDown}
+              onSelect={syncSelection}
               onScroll={(event) => {
                 const mirror = event.currentTarget.previousElementSibling;
                 if (!(mirror instanceof HTMLElement)) return;

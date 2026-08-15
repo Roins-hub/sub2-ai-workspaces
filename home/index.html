@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0c0c0b" />
+    <meta name="theme-color" content="#eef3f3" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta
       name="description"
@@ -15,14 +15,16 @@
   <body>
     <main class="launcher">
       <header class="topbar">
-        <a class="brand" href="https://first.sub2image.cc.cd" aria-label="Sub2 AI 工作台首页">
-          <span class="brand-mark" aria-hidden="true">S2</span>
-          <span class="brand-name">SUB2 AI</span>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+        <a
+          class="window-link"
+          href="https://first.sub2image.cc.cd"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span class="external-mark" aria-hidden="true">↗</span>
+          新窗口打开
         </a>
-        <div class="system-state" aria-label="服务状态">
-          <span class="state-dot" aria-hidden="true"></span>
-          工作台服务正常
-        </div>
       </header>
 
       <section class="intro" aria-labelledby="page-title">
@@ -33,10 +35,9 @@
 
       <section class="workspace-grid" aria-label="工作台列表">
         <a class="workspace image-workspace" href="https://sub2image.cc.cd">
-          <div class="workspace-preview image-preview" aria-hidden="true">
-            <img src="/assets/zenith-preview.png" alt="" />
-            <span class="preview-shade"></span>
-            <span class="preview-label">ZENITH</span>
+          <div class="workspace-preview image-preview">
+            <img src="/assets/zenith-preview.png" alt="Zenith 生图工作台界面预览" />
+            <span class="workspace-status online">在线</span>
           </div>
           <div class="workspace-body">
             <div>
@@ -49,32 +50,12 @@
               <span class="arrow" aria-hidden="true">↗</span>
             </span>
           </div>
-          <span class="workspace-status online">在线</span>
         </a>
 
         <a class="workspace chat-workspace" href="https://chat.sub2image.cc.cd">
-          <div class="workspace-preview chat-preview" aria-hidden="true">
-            <div class="chat-rail">
-              <span class="rail-logo">S2</span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <div class="chat-stage">
-              <div class="chat-stage-head">
-                <span>GPT-5.6</span>
-                <i></i>
-              </div>
-              <div class="chat-lines">
-                <span class="line short"></span>
-                <span class="line"></span>
-                <span class="line medium"></span>
-              </div>
-              <div class="chat-composer">
-                <span>输入消息...</span>
-                <b>↑</b>
-              </div>
-            </div>
+          <div class="workspace-preview chat-preview">
+            <img src="/assets/chat-preview.png" alt="SUB2 聊天工作台界面预览" />
+            <span class="workspace-status online">在线</span>
           </div>
           <div class="workspace-body">
             <div>
@@ -83,11 +64,10 @@
               <p>模型切换 · 流式对话 · 本地历史</p>
             </div>
             <span class="launch-action">
-              查看进度
+              进入工作台
               <span class="arrow" aria-hidden="true">↗</span>
             </span>
           </div>
-          <span class="workspace-status preparing">准备中</span>
         </a>
       </section>
 
