@@ -253,32 +253,9 @@ type SlashCommandItem = {
   sourceLabel: string;
 };
 
-const CommandBadge: FC<{ item: SlashCommandItem }> = ({ item }) => (
-  <span className="composer-command-badge">
-    <span>{item.command}</span>
-    {item.source === "mcp" ? <WrenchIcon aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
-  </span>
-);
-
-const SelectedCommandChip: FC<{ item: SlashCommandItem }> = ({ item }) => (
-  <span className="composer-command-badge">
-    {item.source === "mcp" ? <WrenchIcon aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
-    <span>{item.label}</span>
-  </span>
-);
-
-const Composer: FC = () => {
-  const aui = useAui();
-  const text = useAuiState((s) => s.composer.text);
-  const isNewChat = useAuiState(isNewChatView);
+const useSlashCommands = (): SlashCommandItem[] => {
   const mcp = useStoreAuiState((s) => s.mcp);
   const plugins = usePluginSettings();
-  const [activeCommand, setActiveCommand] = useState(0);
-  const [dismissedText, setDismissedText] = useState<string | null>(null);
-  const [composerFocused, setComposerFocused] = useState(false);
-  const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
-  const commandMatch = text.match(/^\/([^\s]*)$/);
-  const commandQuery = commandMatch?.[1] ?? null;
   const pluginCommands: SlashCommandItem[] = WORKSPACE_PLUGINS.filter((plugin) =>
     plugins.isEnabled(plugin.id),
   ).map((plugin) => ({
@@ -301,7 +278,35 @@ const Composer: FC = () => {
         sourceLabel: server.name,
       })),
     );
-  const allCommands = [...pluginCommands, ...mcpCommands];
+
+  return [...pluginCommands, ...mcpCommands];
+};
+
+const CommandBadge: FC<{ item: SlashCommandItem }> = ({ item }) => (
+  <span className="composer-command-badge">
+    <span>{item.command}</span>
+    {item.source === "mcp" ? <WrenchIcon aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
+  </span>
+);
+
+const SelectedCommandChip: FC<{ item: SlashCommandItem }> = ({ item }) => (
+  <span className="composer-command-badge">
+    {item.source === "mcp" ? <WrenchIcon aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
+    <span>{item.label}</span>
+  </span>
+);
+
+const Composer: FC = () => {
+  const aui = useAui();
+  const text = useAuiState((s) => s.composer.text);
+  const isNewChat = useAuiState(isNewChatView);
+  const allCommands = useSlashCommands();
+  const [activeCommand, setActiveCommand] = useState(0);
+  const [dismissedText, setDismissedText] = useState<string | null>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
+  const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
+  const commandMatch = text.match(/^\/([^\s]*)$/);
+  const commandQuery = commandMatch?.[1] ?? null;
   const normalizedQuery = commandQuery?.toLocaleLowerCase() ?? null;
   const commands = allCommands.filter(
     (item) =>
@@ -685,7 +690,26 @@ const AssistantMessage: FC = () => {
               }
               return <MarkdownText />;
             }
-            if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
+            if (part.type === "tool-call") {
+              if (!part.toolUI) return <ToolFallback {...part} />;
+              const toolName = part.toolName.split("__").at(-1) ?? part.toolName;
+              return (
+                <div className="border-border/70 bg-muted/20 dark:bg-muted/10 my-2 overflow-hidden rounded-xl border shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent)]">
+                  <div className="flex items-center gap-3 px-3.5 py-3">
+                    <span className="border-border/70 bg-background flex size-8 shrink-0 items-center justify-center rounded-lg border shadow-xs">
+                      <WrenchIcon className="text-muted-foreground size-4" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="text-muted-foreground block text-[11px] font-medium">
+                        插件工具
+                      </span>
+                      <span className="block truncate text-sm font-semibold">{toolName}</span>
+                    </span>
+                  </div>
+                  <div className="border-border/60 border-t px-3.5 py-3">{part.toolUI}</div>
+                </div>
+              );
+            }
             return null;
           }}
         </MessagePrimitive.Parts>
@@ -767,6 +791,8 @@ const AssistantActionBar: FC = () => {
 };
 
 const UserMessage: FC = () => {
+  const allCommands = useSlashCommands();
+
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
@@ -777,7 +803,32 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content peer bg-muted text-foreground rounded-xl px-4 py-2 wrap-break-word empty:hidden">
-          <MessagePrimitive.Parts />
+          <MessagePrimitive.Parts>
+            {({ part }) => {
+              if (part.type !== "text") return null;
+              const leadingCommand = part.text.match(/^(\/[^\s]+)/)?.[1] ?? null;
+              if (!leadingCommand) return <span className="whitespace-pre-wrap">{part.text}</span>;
+
+              const knownCommand = allCommands.find((item) => item.command === leadingCommand);
+              const plugin = WORKSPACE_PLUGINS.find((item) => item.command === leadingCommand);
+              const commandItem: SlashCommandItem = knownCommand ?? {
+                id: leadingCommand,
+                command: leadingCommand,
+                label: leadingCommand.slice(1),
+                description: "已发送的工具命令",
+                source: plugin ? "plugin" : "mcp",
+                sourceLabel: plugin ? "内置插件" : "MCP 工具",
+              };
+              const suffix = part.text.slice(leadingCommand.length).replace(/^\s+/, "");
+
+              return (
+                <span className="inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1">
+                  <SelectedCommandChip item={commandItem} />
+                  {suffix && <span className="min-w-0 whitespace-pre-wrap">{suffix}</span>}
+                </span>
+              );
+            }}
+          </MessagePrimitive.Parts>
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
           <UserActionBar />

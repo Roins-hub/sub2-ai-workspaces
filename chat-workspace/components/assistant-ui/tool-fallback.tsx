@@ -60,7 +60,10 @@ function ToolFallbackRoot({
       data-slot="tool-fallback-root"
       open={isOpen}
       onOpenChange={handleOpenChange}
-      className={cn("aui-tool-fallback-root group/tool-fallback-root w-full", className)}
+      className={cn(
+        "aui-tool-fallback-root group/tool-fallback-root border-border/70 bg-muted/20 dark:bg-muted/10 my-2 w-full overflow-hidden rounded-xl border shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent)]",
+        className,
+      )}
       style={
         {
           "--animation-duration": `${ANIMATION_DURATION}ms`,
@@ -122,13 +125,22 @@ function ToolFallbackTrigger({
   const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
 
   const Icon = statusIconMap[statusType];
-  const label = isCancelled ? "Cancelled tool" : "Used tool";
+  const displayName = toolName.split("__").at(-1) ?? toolName;
+  const label = isCancelled
+    ? "工具调用已取消"
+    : statusType === "running"
+      ? "正在调用工具"
+      : statusType === "incomplete"
+        ? "工具调用失败"
+        : statusType === "requires-action"
+          ? "工具调用待确认"
+          : "工具调用完成";
 
   return (
     <CollapsibleTrigger
       data-slot="tool-fallback-trigger"
       className={cn(
-        "aui-tool-fallback-trigger group/trigger text-muted-foreground hover:text-foreground flex w-fit origin-left items-center gap-2 py-1.5 text-sm transition-[color,scale] active:scale-[0.98]",
+        "aui-tool-fallback-trigger group/trigger hover:bg-muted/45 flex w-full origin-center items-center gap-3 px-3.5 py-3 text-left transition-[background-color,scale] active:scale-[0.995]",
         className,
       )}
       {...props}
@@ -136,7 +148,7 @@ function ToolFallbackTrigger({
       <Icon
         data-slot="tool-fallback-trigger-icon"
         className={cn(
-          "aui-tool-fallback-trigger-icon size-4 shrink-0",
+          "aui-tool-fallback-trigger-icon border-border/70 bg-background text-muted-foreground size-8 shrink-0 rounded-lg border p-[7px] shadow-xs",
           isCancelled && "text-muted-foreground",
           isRunning && "animate-spin [animation-duration:0.6s]",
         )}
@@ -144,12 +156,15 @@ function ToolFallbackTrigger({
       <span
         data-slot="tool-fallback-trigger-label"
         className={cn(
-          "aui-tool-fallback-trigger-label-wrapper relative inline-block text-start leading-none",
+          "aui-tool-fallback-trigger-label-wrapper relative min-w-0 flex-1 text-start",
           isCancelled && "text-muted-foreground line-through",
         )}
       >
-        <span>
-          {label}: <b>{toolName}</b>
+        <span className="block">
+          <span className="text-muted-foreground block text-[11px] font-medium">{label}</span>
+          <b className="text-foreground mt-0.5 block truncate text-sm font-semibold">
+            {displayName}
+          </b>
         </span>
         {isRunning && (
           <span
@@ -157,7 +172,8 @@ function ToolFallbackTrigger({
             data-slot="tool-fallback-trigger-shimmer"
             className="aui-tool-fallback-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
           >
-            {label}: <b>{toolName}</b>
+            <span className="block text-[11px] font-medium">{label}</span>
+            <b className="mt-0.5 block truncate text-sm font-semibold">{displayName}</b>
           </span>
         )}
       </span>
@@ -199,7 +215,7 @@ function ToolFallbackContent({
     >
       <div
         className={cn(
-          "flex flex-col gap-2 ps-6 pt-1 pb-2 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
+          "border-border/60 flex flex-col gap-2 border-t px-3.5 py-3 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
           "group-data-open/collapsible-content:animate-in group-data-open/collapsible-content:fade-in-0 group-data-open/collapsible-content:blur-in-[2px] group-data-open/collapsible-content:slide-in-from-top-1",
           "group-data-closed/collapsible-content:animate-out group-data-closed/collapsible-content:fade-out-0 group-data-closed/collapsible-content:blur-out-[2px] group-data-closed/collapsible-content:slide-out-to-top-1",
           "group-data-closed/collapsible-content:duration-(--animation-duration) group-data-open/collapsible-content:duration-(--animation-duration)",
