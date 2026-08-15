@@ -3,6 +3,11 @@ import { frontendTools, type FrontendTools } from "@assistant-ui/react-ai-sdk";
 import { streamText, convertToModelMessages, type ToolSet, type UIMessage } from "ai";
 import { isProviderId, normalizeApiKey, normalizeModel, providerApiBase } from "@/lib/providers";
 import { IMAGE_WORKSPACE_TOOL_NAME } from "@/lib/image-workspace";
+import {
+  clampReasoningEffort,
+  DEFAULT_REASONING_EFFORT,
+  normalizeReasoningEffort,
+} from "@/lib/reasoning";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -95,6 +100,7 @@ export async function POST(req: Request) {
     key?: unknown;
     model?: unknown;
     webSearch?: unknown;
+    reasoningEffort?: unknown;
     imagePluginEnabled?: unknown;
     tools?: unknown;
   };
@@ -146,6 +152,9 @@ export async function POST(req: Request) {
   });
 
   const webSearchEnabled = body.webSearch === true;
+  const requestedReasoningEffort =
+    normalizeReasoningEffort(body.reasoningEffort) ?? DEFAULT_REASONING_EFFORT;
+  const reasoningEffort = clampReasoningEffort(model, requestedReasoningEffort);
   const imagePluginEnabled = body.imagePluginEnabled !== false;
 
   const enabledUploadedTools = { ...(uploadedTools as Record<string, unknown>) };
@@ -233,6 +242,7 @@ export async function POST(req: Request) {
     providerOptions: {
       openai: {
         store: false,
+        ...(reasoningEffort ? { reasoningEffort } : {}),
       },
     },
     ...(hasImageRequest

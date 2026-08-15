@@ -2,6 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
+import {
+  clampReasoningEffort,
+  DEFAULT_REASONING_EFFORT,
+  normalizeReasoningEffort,
+  reasoningEffortsForModel,
+  type ReasoningEffort,
+} from "@/lib/reasoning";
 
 type LoadState = "idle" | "loading" | "success" | "error";
 
@@ -20,6 +27,8 @@ type ChatSettingsValue = {
   loadError: string;
   webSearch: boolean;
   setWebSearch: (enabled: boolean) => void;
+  reasoningEffort: ReasoningEffort;
+  setReasoningEffort: (effort: ReasoningEffort) => void;
 };
 
 const ChatSettingsContext = createContext<ChatSettingsValue | null>(null);
@@ -39,6 +48,8 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [loadError, setLoadError] = useState("");
   const [webSearch, setWebSearchState] = useState(false);
+  const [reasoningEffort, setReasoningEffortState] =
+    useState<ReasoningEffort>(DEFAULT_REASONING_EFFORT);
 
   const hydrateProvider = useCallback((next: ProviderId) => {
     const remembered = localStorage.getItem(rememberName(next)) === "true";
@@ -59,7 +70,20 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
     setProviderState(next);
     hydrateProvider(next);
     setWebSearchState(localStorage.getItem("sub2chat:web-search") === "true");
+    const storedReasoningEffort = localStorage.getItem("sub2chat:reasoning-effort");
+    setReasoningEffortState(
+      normalizeReasoningEffort(storedReasoningEffort) ?? DEFAULT_REASONING_EFFORT,
+    );
   }, [hydrateProvider]);
+
+  useEffect(() => {
+    const available = reasoningEffortsForModel(model);
+    if (available.length === 0 || available.includes(reasoningEffort)) return;
+
+    const next = available.at(-1) ?? DEFAULT_REASONING_EFFORT;
+    setReasoningEffortState(next);
+    localStorage.setItem("sub2chat:reasoning-effort", next);
+  }, [model, reasoningEffort]);
 
   const setProvider = (next: ProviderId) => {
     setProviderState(next);
@@ -93,6 +117,12 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   const setWebSearch = (enabled: boolean) => {
     setWebSearchState(enabled);
     localStorage.setItem("sub2chat:web-search", String(enabled));
+  };
+
+  const setReasoningEffort = (effort: ReasoningEffort) => {
+    const next = clampReasoningEffort(model, effort) ?? effort;
+    setReasoningEffortState(next);
+    localStorage.setItem("sub2chat:reasoning-effort", next);
   };
 
   const loadModels = async () => {
@@ -139,8 +169,20 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
       loadError,
       webSearch,
       setWebSearch,
+      reasoningEffort,
+      setReasoningEffort,
     }),
-    [provider, apiKey, rememberKey, model, modelsByProvider, loadState, loadError, webSearch],
+    [
+      provider,
+      apiKey,
+      rememberKey,
+      model,
+      modelsByProvider,
+      loadState,
+      loadError,
+      webSearch,
+      reasoningEffort,
+    ],
   );
 
   return <ChatSettingsContext.Provider value={value}>{children}</ChatSettingsContext.Provider>;

@@ -30,6 +30,7 @@ import { useAuiState as useStoreAuiState } from "@assistant-ui/store";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  BrainCircuitIcon,
   CheckIcon,
   ChartNoAxesColumnIncreasingIcon,
   ChevronDownIcon,
@@ -50,8 +51,22 @@ import {
   SquareIcon,
   WrenchIcon,
 } from "lucide-react";
-import { useEffect, useState, type FC, type KeyboardEventHandler, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FC,
+  type KeyboardEventHandler,
+  type ReactNode,
+} from "react";
 import { WORKSPACE_PLUGINS } from "@/lib/plugins";
+import {
+  DEFAULT_REASONING_EFFORT,
+  REASONING_EFFORT_LABELS,
+  reasoningEffortsForModel,
+} from "@/lib/reasoning";
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
@@ -620,6 +635,7 @@ const ComposerAction: FC = () => {
         </button>
       </div>
       <div className="flex items-center gap-1.5">
+        <ReasoningEffortControl />
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate asChild>
@@ -681,6 +697,112 @@ const ComposerAction: FC = () => {
           </ComposerPrimitive.Cancel>
         </AuiIf>
       </div>
+    </div>
+  );
+};
+
+const ReasoningEffortControl: FC = () => {
+  const settings = useChatSettings();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  const availableEfforts = reasoningEffortsForModel(settings.model);
+  const effectiveEffort = availableEfforts.includes(settings.reasoningEffort)
+    ? settings.reasoningEffort
+    : (availableEfforts.at(-1) ?? DEFAULT_REASONING_EFFORT);
+  const effortIndex = Math.max(0, availableEfforts.indexOf(effectiveEffort));
+  const progress = availableEfforts.length > 1 ? effortIndex / (availableEfforts.length - 1) : 0;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  if (availableEfforts.length === 0) return null;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <TooltipIconButton
+        tooltip={`思考强度：${REASONING_EFFORT_LABELS[effectiveEffort]}`}
+        side="bottom"
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "reasoning-trigger flex h-7 w-auto items-center gap-1 rounded-full px-2 text-xs font-medium",
+          open && "reasoning-trigger-active",
+        )}
+        aria-label={`思考强度：${REASONING_EFFORT_LABELS[effectiveEffort]}`}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <BrainCircuitIcon className="size-3.5" />
+        <span>思考</span>
+      </TooltipIconButton>
+
+      {open && (
+        <div
+          id={panelId}
+          role="dialog"
+          aria-label="设置思考强度"
+          className="reasoning-panel fade-in zoom-in-95 animate-in absolute right-0 bottom-10 z-50 w-[min(15rem,calc(100vw-2rem))] duration-150"
+        >
+          <div className="reasoning-current-value">
+            <span>{REASONING_EFFORT_LABELS[effectiveEffort]}</span>
+            <ChevronRightIcon aria-hidden="true" />
+          </div>
+          <div
+            className="reasoning-slider"
+            style={{ "--reasoning-progress": progress } as CSSProperties}
+          >
+            <input
+              className="reasoning-slider-input"
+              type="range"
+              min={0}
+              max={availableEfforts.length - 1}
+              step={1}
+              value={effortIndex}
+              aria-label="思考强度"
+              aria-valuetext={REASONING_EFFORT_LABELS[effectiveEffort]}
+              onChange={(event) => {
+                const effort = availableEfforts[Number(event.currentTarget.value)];
+                if (effort) settings.setReasoningEffort(effort);
+              }}
+            />
+            <div className="reasoning-slider-visual" aria-hidden="true">
+              <span className="reasoning-slider-fill" />
+              {availableEfforts.map((effort, index) => (
+                <span
+                  key={effort}
+                  className="reasoning-slider-node"
+                  style={
+                    {
+                      "--reasoning-node-progress": index / (availableEfforts.length - 1),
+                    } as CSSProperties
+                  }
+                />
+              ))}
+              <span className="reasoning-slider-thumb" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
