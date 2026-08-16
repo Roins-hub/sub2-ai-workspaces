@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { frontendTools, type FrontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools, injectQuoteContext, type FrontendTools } from "@assistant-ui/react-ai-sdk";
 import { streamText, convertToModelMessages, type ToolSet, type UIMessage } from "ai";
 import { isProviderId, normalizeApiKey, normalizeModel, providerApiBase } from "@/lib/providers";
 import { IMAGE_WORKSPACE_TOOL_NAME } from "@/lib/image-workspace";
@@ -235,7 +235,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai.responses(model),
-    messages: await convertToModelMessages(body.messages, { tools }),
+    messages: await convertToModelMessages(injectQuoteContext(body.messages), { tools }),
     system,
     tools,
     activeTools,
@@ -259,6 +259,8 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
+    sendReasoning: true,
+    sendSources: true,
     onError: (error) =>
       error instanceof Error ? `请求失败：${error.message}` : "请求失败，请稍后重试。",
   });

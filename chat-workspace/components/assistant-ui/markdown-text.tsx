@@ -1,26 +1,92 @@
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";
+import "katex/dist/katex.min.css";
 
 import {
+  escapeCurrencyDollars,
   type CodeHeaderProps,
   MarkdownTextPrimitive,
+  normalizeMathDelimiters,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import remarkMath from "remark-math";
+import { type ComponentProps, type FC, memo, useState } from "react";
+import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { MermaidDiagram } from "@/components/assistant-ui/mermaid-diagram";
+import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
+import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/sources";
 import { cn } from "@/lib/utils";
+
+const preprocessMarkdown = (text: string) => escapeCurrencyDollars(normalizeMathDelimiters(text));
+
+const extractDomain = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+};
+
+const MarkdownLink: FC<ComponentProps<"a">> = ({ className, children, href, ...props }) => {
+  const label = typeof children === "string" ? children : "";
+  const normalizedLabel = label.replace(/\/$/, "");
+  const normalizedHref = href?.replace(/\/$/, "");
+  const isBareUrl = Boolean(
+    href?.match(/^https?:\/\//i) && normalizedLabel && normalizedLabel === normalizedHref,
+  );
+
+  if (href && isBareUrl) {
+    const domain = extractDomain(href);
+    return (
+      <Source
+        href={href}
+        title={href}
+        className={cn(
+          "aui-md-source-link border-border/70 bg-muted/40 text-foreground hover:border-border hover:bg-muted my-1 h-8 max-w-full gap-2 rounded-lg px-2.5 py-1.5 no-underline shadow-xs transition-[background-color,border-color,box-shadow]",
+          className,
+        )}
+        {...props}
+      >
+        <SourceIcon url={href} className="size-4 rounded" />
+        <SourceTitle className="max-w-[16rem] font-medium">{domain}</SourceTitle>
+        <ExternalLinkIcon className="text-muted-foreground size-3.5 shrink-0" aria-hidden="true" />
+      </Source>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      className={cn(
+        "aui-md-a text-primary hover:text-primary/80 font-medium underline decoration-current/35 underline-offset-3 transition-colors",
+        className,
+      )}
+      target="_blank"
+      rel="noopener noreferrer"
+      {...props}
+    >
+      {children}
+    </a>
+  );
+};
 
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false }]]}
+      preprocess={preprocessMarkdown}
       className="aui-md"
       components={defaultComponents}
+      componentsByLanguage={{
+        mermaid: { SyntaxHighlighter: MermaidDiagram },
+      }}
       defer
     />
   );
@@ -73,6 +139,7 @@ const useCopyToClipboard = ({
 };
 
 const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter,
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
@@ -124,15 +191,7 @@ const defaultComponents = memoizeMarkdownComponents({
   p: ({ className, ...props }) => (
     <p className={cn("aui-md-p my-3 leading-relaxed first:mt-0 last:mb-0", className)} {...props} />
   ),
-  a: ({ className, ...props }) => (
-    <a
-      className={cn(
-        "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
-        className,
-      )}
-      {...props}
-    />
-  ),
+  a: MarkdownLink,
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(

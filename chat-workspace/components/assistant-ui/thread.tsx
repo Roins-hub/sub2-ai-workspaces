@@ -5,7 +5,25 @@ import {
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
+import { MessageTiming } from "@/components/assistant-ui/message-timing";
+import {
+  ComposerQuotePreview,
+  QuoteBlock,
+  SelectionToolbar,
+} from "@/components/assistant-ui/quote";
+import {
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/reasoning";
+import { Sources } from "@/components/assistant-ui/sources";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+} from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { ConnectionSettingsDialog } from "@/components/connection-settings-dialog";
 import { useChatSettings } from "@/components/chat-settings";
@@ -21,6 +39,7 @@ import {
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
+  groupPartByType,
   MessagePrimitive,
   ThreadPrimitive,
   unstable_useComposerInput,
@@ -123,6 +142,7 @@ export const Thread: FC = () => {
           </AuiIf>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+      <SelectionToolbar />
     </ThreadPrimitive.Root>
   );
 };
@@ -725,6 +745,7 @@ const Composer: FC = () => {
           data-slot="aui_composer-shell"
           className="composer-shell border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)] data-[dragging=true]:border-dashed dark:shadow-none"
         >
+          <ComposerQuotePreview />
           <ComposerAttachments />
           <div className="relative">
             <ComposerEditableInput
@@ -991,8 +1012,60 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
-        <MessagePrimitive.Parts>
-          {({ part }) => {
+        <MessagePrimitive.GroupedParts
+          groupBy={groupPartByType({
+            reasoning: ["group-invocation", "group-reasoning"],
+            source: ["group-source"],
+            "tool-call": ["group-invocation", "group-tool"],
+          })}
+        >
+          {({ part, children }) => {
+            if (part.type === "group-invocation") {
+              const isStreaming = part.status.type === "running";
+              return (
+                <ReasoningRoot streaming={isStreaming} variant="outline" className="my-3">
+                  <ReasoningTrigger
+                    active={isStreaming}
+                    label="全部调用过程"
+                    icon={<WrenchIcon className="size-4 shrink-0" aria-hidden="true" />}
+                    className="max-w-full"
+                  />
+                  <ReasoningContent aria-busy={isStreaming}>
+                    <div className="border-border/60 mt-1 border-t pt-2">{children}</div>
+                  </ReasoningContent>
+                </ReasoningRoot>
+              );
+            }
+            if (part.type === "group-reasoning") {
+              const isStreaming = part.status.type === "running";
+              return (
+                <ReasoningRoot streaming={isStreaming} variant="ghost">
+                  <ReasoningTrigger active={isStreaming} />
+                  <ReasoningContent aria-busy={isStreaming}>
+                    <ReasoningText>{children}</ReasoningText>
+                  </ReasoningContent>
+                </ReasoningRoot>
+              );
+            }
+            if (part.type === "group-source") {
+              return (
+                <div className="my-3">
+                  <div className="text-muted-foreground mb-1.5 text-xs font-medium">
+                    联网来源 · {part.indices.length}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">{children}</div>
+                </div>
+              );
+            }
+            if (part.type === "group-tool") {
+              const isRunning = part.status.type === "running";
+              return (
+                <ToolGroupRoot variant="ghost" className="my-2">
+                  <ToolGroupTrigger count={part.indices.length} active={isRunning} />
+                  <ToolGroupContent>{children}</ToolGroupContent>
+                </ToolGroupRoot>
+              );
+            }
             if (part.type === "text") {
               // Older builds rendered the loading dot as message content. Ignore it when
               // reopening a history entry so it cannot appear beside the new thinking state.
@@ -1004,6 +1077,8 @@ const AssistantMessage: FC = () => {
               }
               return <MarkdownText />;
             }
+            if (part.type === "reasoning") return <MarkdownText />;
+            if (part.type === "source") return <Sources {...part} />;
             if (part.type === "tool-call") {
               if (!part.toolUI) return <ToolFallback {...part} />;
               const toolName = part.toolName.split("__").at(-1) ?? part.toolName;
@@ -1024,9 +1099,10 @@ const AssistantMessage: FC = () => {
                 </div>
               );
             }
+            if (part.type === "indicator") return null;
             return null;
           }}
-        </MessagePrimitive.Parts>
+        </MessagePrimitive.GroupedParts>
         <AuiIf
           condition={(s) =>
             s.message.isLast && s.message.status?.type === "running" && s.message.parts.length === 0
@@ -1080,6 +1156,7 @@ const AssistantActionBar: FC = () => {
           <RefreshCwIcon />
         </TooltipIconButton>
       </ActionBarPrimitive.Reload>
+      <MessageTiming side="bottom" />
       <ActionBarMorePrimitive.Root>
         <ActionBarMorePrimitive.Trigger asChild>
           <TooltipIconButton tooltip="更多" className="data-[state=open]:bg-accent">
@@ -1117,6 +1194,7 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content peer bg-muted text-foreground rounded-xl px-4 py-2 wrap-break-word empty:hidden">
+          <MessagePrimitive.Quote>{(quote) => <QuoteBlock {...quote} />}</MessagePrimitive.Quote>
           <MessagePrimitive.Parts>
             {({ part }) => {
               if (part.type !== "text") return null;
