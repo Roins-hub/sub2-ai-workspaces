@@ -92,6 +92,15 @@ Request:
 ${request}
 `.trim();
 
+const FILE_OUTPUT_SYSTEM = [
+  "Downloadable file output:",
+  "- When the user explicitly asks you to create, generate, or provide a downloadable text or code file, return the complete file content in a fenced code block.",
+  '- Add filename metadata to the opening fence using this exact form: ```html filename="example.html".',
+  "- Choose the correct fence language and a safe filename with the proper extension. For multiple files, use one complete fenced block per file.",
+  "- Do not emit raw <a download> tags, data URLs, blob URLs, or base64 solely to create a download link. The chat UI creates the download locally.",
+  "- Do not claim that a native binary file was generated. If a binary format is requested without a suitable tool, offer a text-based alternative such as CSV, Markdown, HTML, SVG, or JSON.",
+].join("\n");
+
 export async function POST(req: Request) {
   let body: {
     messages?: UIMessage[];
@@ -211,7 +220,7 @@ export async function POST(req: Request) {
         ? []
         : Object.keys(tools).filter((toolName) => toolName !== IMAGE_WORKSPACE_TOOL_NAME);
 
-  const system = hasImageRequest
+  const commandSystem = hasImageRequest
     ? [body.system, imageCommandSystem(imageRequest)].filter(Boolean).join("\n\n")
     : hasImageCommand
       ? [
@@ -232,6 +241,9 @@ export async function POST(req: Request) {
               .filter(Boolean)
               .join("\n\n")
           : body.system;
+  const system = hasImageCommand
+    ? commandSystem
+    : [commandSystem, FILE_OUTPUT_SYSTEM].filter(Boolean).join("\n\n");
 
   const result = streamText({
     model: openai.responses(model),

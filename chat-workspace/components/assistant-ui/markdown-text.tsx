@@ -14,13 +14,14 @@ import {
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { type ComponentProps, type FC, memo, useState } from "react";
-import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
+import { type ComponentProps, type FC, memo, useEffect, useRef, useState } from "react";
+import { CheckIcon, CopyIcon, DownloadIcon, ExternalLinkIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { MermaidDiagram } from "@/components/assistant-ui/mermaid-diagram";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
 import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/sources";
+import { copyTextToClipboard, downloadTextFile, fileDetailsForCode } from "@/lib/browser-actions";
 import { cn } from "@/lib/utils";
 
 const preprocessMarkdown = (text: string) => escapeCurrencyDollars(normalizeMathDelimiters(text));
@@ -94,22 +95,43 @@ const MarkdownTextImpl = () => {
 
 export const MarkdownText = memo(MarkdownTextImpl);
 
-const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
+const filenameFromMeta = (node: CodeHeaderProps["node"]) => {
+  const metadata = node?.data as Record<string, unknown> | undefined;
+  const meta = typeof metadata?.meta === "string" ? metadata.meta : "";
+  const match = meta.match(/(?:^|\s)filename=(?:"([^"]+)"|'([^']+)'|([^\s]+))/i);
+  return match?.[1] ?? match?.[2] ?? match?.[3] ?? null;
+};
+
+const CodeHeader: FC<CodeHeaderProps> = ({ node, language, code }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
-  const onCopy = () => {
+  const file = fileDetailsForCode(language, filenameFromMeta(node));
+  const onCopy = async () => {
     if (!code || isCopied) return;
-    copyToClipboard(code);
+    await copyToClipboard(code);
   };
 
   return (
     <div className="aui-code-header-root border-border/50 bg-muted/50 mt-3 flex items-center justify-between rounded-t-xl border border-b-0 px-3.5 py-1.5 text-xs">
-      <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
-        {language}
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="aui-code-header-language text-muted-foreground shrink-0 font-medium lowercase">
+          {language}
+        </span>
+        <span className="text-foreground/80 truncate font-medium">{file.filename}</span>
       </span>
-      <TooltipIconButton tooltip="复制代码" onClick={onCopy}>
-        {!isCopied && <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />}
-        {isCopied && <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />}
-      </TooltipIconButton>
+      <span className="flex shrink-0 items-center gap-1">
+        <TooltipIconButton
+          tooltip={`下载 ${file.filename}`}
+          onClick={() => downloadTextFile(code, file.filename, file.mime)}
+        >
+          <DownloadIcon />
+        </TooltipIconButton>
+        <TooltipIconButton tooltip="复制代码" onClick={onCopy}>
+          {!isCopied && <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />}
+          {isCopied && (
+            <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+          )}
+        </TooltipIconButton>
+      </span>
     </div>
   );
 };
@@ -120,19 +142,26 @@ const useCopyToClipboard = ({
   copiedDuration?: number;
 } = {}) => {
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const copyToClipboard = (value: string) => {
-    if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
+  useEffect(
+    () => () => {
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    },
+    [],
+  );
 
-    navigator.clipboard.writeText(value).then(
-      () => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), copiedDuration);
-      },
-      () => {},
-    );
+  const copyToClipboard = async (value: string) => {
+    const copied = await copyTextToClipboard(value);
+    if (!copied) return false;
+
+    setIsCopied(true);
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = setTimeout(() => {
+      resetTimerRef.current = null;
+      setIsCopied(false);
+    }, copiedDuration);
+    return true;
   };
 
   return { isCopied, copyToClipboard };

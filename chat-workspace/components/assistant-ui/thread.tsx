@@ -31,6 +31,7 @@ import { usePluginSettings } from "@/components/plugin-settings";
 import { ModelSelect } from "@/components/model-select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { copyTextToClipboard } from "@/lib/browser-actions";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -1135,22 +1136,50 @@ const AssistantMessage: FC = () => {
 };
 
 const AssistantActionBar: FC = () => {
+  const aui = useAui();
+  const isCopied = useAuiState((s) => s.message.isCopied);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
+  const handleCopy = async () => {
+    const content = aui.message.getCopyText();
+    if (!content) return;
+
+    const copied = await copyTextToClipboard(content);
+    setCopyFailed(!copied);
+    aui.message.setIsCopied(copied);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => {
+      copyTimerRef.current = null;
+      setCopyFailed(false);
+      aui.message.setIsCopied(false);
+    }, 3000);
+  };
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
       className="aui-assistant-action-bar-root text-muted-foreground animate-in fade-in col-start-3 row-start-2 -ms-1 flex gap-1 duration-200"
     >
-      <ActionBarPrimitive.Copy asChild>
-        <TooltipIconButton tooltip="复制">
-          <AuiIf condition={(s) => s.message.isCopied}>
-            <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
-          </AuiIf>
-          <AuiIf condition={(s) => !s.message.isCopied}>
-            <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
-          </AuiIf>
-        </TooltipIconButton>
-      </ActionBarPrimitive.Copy>
+      <TooltipIconButton
+        tooltip={copyFailed ? "复制失败，请重试" : isCopied ? "已复制" : "复制"}
+        onClick={handleCopy}
+        className={copyFailed ? "text-destructive" : undefined}
+      >
+        {isCopied ? (
+          <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+        ) : (
+          <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+        )}
+      </TooltipIconButton>
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip="重新生成">
           <RefreshCwIcon />
