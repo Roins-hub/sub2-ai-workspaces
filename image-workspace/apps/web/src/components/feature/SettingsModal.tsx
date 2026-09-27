@@ -25,6 +25,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { fetchOpenAIModels } from '@/lib/api'
+import { IMAGE_MODEL_OPTIONS } from '@/lib/imageModels'
 import {
   getLLMModels,
   IMAGE_RELAY_PRESETS,
@@ -95,6 +96,8 @@ export function SettingsModal({
     return (saved as TabType) || 'api'
   })
   const [showImageApiKey, setShowImageApiKey] = useState(false)
+  const [customImageModel, setCustomImageModel] = useState(() => !IMAGE_MODEL_OPTIONS.some(option => option.id === model))
+  const selectedImageModel = IMAGE_MODEL_OPTIONS.find(option => option.id === model)
 
   // Custom models state for optimize and translate
   const [optimizeCustomModels, setOptimizeCustomModels] = useState<Array<{ id: string }>>([])
@@ -281,13 +284,36 @@ export function SettingsModal({
               </p>
 
               <div>
-                <Label className="text-zinc-400 text-xs">{t('apiConfig.model')}</Label>
-                <Input
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder="gpt-image-2"
-                  className="mt-1 bg-zinc-950 border-zinc-800 text-zinc-100"
-                />
+                <Label htmlFor="image-model-choice" className="text-zinc-400 text-xs">{t('apiConfig.model')}</Label>
+                <Select
+                  value={customImageModel || !selectedImageModel ? 'custom' : model}
+                  onValueChange={(value) => {
+                    setCustomImageModel(value === 'custom')
+                    if (value !== 'custom') setModel(value)
+                  }}
+                >
+                  <SelectTrigger id="image-model-choice" aria-describedby="image-model-guide" className="mt-1 w-full min-w-0 bg-zinc-950 border-zinc-800 text-zinc-100">
+                    <SelectValue>{customImageModel || !selectedImageModel ? '自定义模型' : model}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="max-w-[calc(100vw-2rem)]">
+                    {IMAGE_MODEL_OPTIONS.map(option => (
+                      <SelectItem key={option.id} value={option.id} textValue={option.id}>
+                        <div className="max-w-80 min-w-0 whitespace-normal py-1">
+                          <div className="text-sm font-medium break-all">{option.id}</div>
+                          <div className="mt-1 text-xs opacity-75 leading-relaxed">{option.tag} · {option.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">自定义模型</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(customImageModel || !selectedImageModel) && (
+                  <Input aria-label="自定义图片模型" value={model} onChange={(e) => setModel(e.target.value)} placeholder="输入中转站支持的模型 ID" className="mt-2 bg-zinc-950 border-zinc-800 text-zinc-100" />
+                )}
+                <p id="image-model-guide" className="mt-2 text-xs leading-relaxed text-zinc-500">
+                  {customImageModel || !selectedImageModel ? '填写中转站支持的完整模型 ID。' : selectedImageModel.description}
+                </p>
+                <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">按官方模型定位介绍；可用性、实际速度和费用以所选中转站为准。</p>
               </div>
 
               <div>
