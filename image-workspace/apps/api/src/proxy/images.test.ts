@@ -9,7 +9,7 @@ describe('custom image proxy', () => {
     const response = await createApp().request('/api/proxy/images/generations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ baseUrl: 'https://sub2.hhlai.xyz/v1' }),
+      body: JSON.stringify({ baseUrl: 'https://new.tangzhi.org/v1' }),
     })
     expect(response.status).toBe(400)
     expect(fetchSpy).not.toHaveBeenCalled()
@@ -32,7 +32,7 @@ describe('custom image proxy', () => {
   it('rejects image edits without reference images', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     const form = new FormData()
-    form.set('baseUrl', 'https://sub2.hhlai.xyz/v1')
+    form.set('baseUrl', 'https://new.tangzhi.org/v1')
     form.set('apiKey', 'secret-key')
     form.set('model', 'gpt-image-2')
     form.set('prompt', 'edit this image')
@@ -59,7 +59,7 @@ describe('custom image proxy', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        baseUrl: 'https://sub2.hhlai.xyz',
+        baseUrl: 'https://new.tangzhi.org',
         apiKey: 'secret-key',
         payload: { model: 'gpt-image-2', prompt: 'test' },
       }),
@@ -67,7 +67,7 @@ describe('custom image proxy', () => {
 
     expect(response.status).toBe(200)
     expect(fetchSpy).toHaveBeenCalledWith(
-      'https://sub2.hhlai.xyz/v1/images/generations',
+      'https://new.tangzhi.org/v1/images/generations',
       expect.objectContaining({ method: 'POST' })
     )
   })
@@ -75,7 +75,7 @@ describe('custom image proxy', () => {
   it('downloads a public HTTP result URL without weakening relay URL validation', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: [{ url: 'http://sub2.hhlai.xyz/generated.png' }] }), {
+        new Response(JSON.stringify({ data: [{ url: 'http://new.tangzhi.org/generated.png' }] }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         })
@@ -91,7 +91,7 @@ describe('custom image proxy', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        baseUrl: 'https://sub2.hhlai.xyz',
+        baseUrl: 'https://new.tangzhi.org',
         apiKey: 'secret-key',
         payload: { model: 'gpt-image-2', prompt: 'test' },
       }),
@@ -100,7 +100,7 @@ describe('custom image proxy', () => {
     expect(response.status).toBe(200)
     expect(fetchSpy).toHaveBeenCalledTimes(2)
     expect(fetchSpy.mock.calls[1][0]).toBeInstanceOf(URL)
-    expect(String(fetchSpy.mock.calls[1][0])).toBe('http://sub2.hhlai.xyz/generated.png')
+    expect(String(fetchSpy.mock.calls[1][0])).toBe('http://new.tangzhi.org/generated.png')
     expect(fetchSpy.mock.calls[1][1]).toEqual(
       expect.objectContaining({ redirect: 'error' })
     )
@@ -112,7 +112,7 @@ describe('custom image proxy', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        baseUrl: 'http://sub2.hhlai.xyz',
+        baseUrl: 'http://new.tangzhi.org',
         apiKey: 'secret-key',
         payload: { model: 'gpt-image-2', prompt: 'test' },
       }),
@@ -139,7 +139,7 @@ describe('custom image proxy', () => {
       )
 
     const form = new FormData()
-    form.set('baseUrl', 'https://sub2.hhlai.xyz')
+    form.set('baseUrl', 'https://new.tangzhi.org')
     form.set('apiKey', 'secret-key')
     form.set('model', 'gpt-image-2')
     form.set('prompt', 'make it cinematic')
@@ -182,7 +182,7 @@ describe('custom image proxy', () => {
     )
 
     const form = new FormData()
-    form.set('baseUrl', 'https://sub2.hhlai.xyz')
+    form.set('baseUrl', 'https://new.tangzhi.org')
     form.set('apiKey', 'invalid-key')
     form.set('model', 'gpt-image-2')
     form.set('prompt', 'edit this')

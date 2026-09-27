@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { PROVIDERS, type ProviderId } from "@/lib/providers";
+import { DEFAULT_PROVIDER_ID, PROVIDERS, type ProviderId } from "@/lib/providers";
 import {
   clampReasoningEffort,
   DEFAULT_REASONING_EFFORT,
@@ -38,7 +38,7 @@ const rememberName = (provider: ProviderId) => `sub2chat:remember:${provider}`;
 const modelName = (provider: ProviderId) => `sub2chat:model:${provider}`;
 
 export function ChatSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [provider, setProviderState] = useState<ProviderId>("hhl");
+  const [provider, setProviderState] = useState<ProviderId>(DEFAULT_PROVIDER_ID);
   const [apiKey, setApiKeyState] = useState("");
   const [rememberKey, setRememberKeyState] = useState(false);
   const [model, setModelState] = useState("");
@@ -66,7 +66,7 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     const storedProvider = localStorage.getItem("sub2chat:provider");
     const next =
-      storedProvider && storedProvider in PROVIDERS ? (storedProvider as ProviderId) : "hhl";
+      storedProvider && storedProvider in PROVIDERS ? (storedProvider as ProviderId) : DEFAULT_PROVIDER_ID;
     setProviderState(next);
     hydrateProvider(next);
     setWebSearchState(localStorage.getItem("sub2chat:web-search") === "true");

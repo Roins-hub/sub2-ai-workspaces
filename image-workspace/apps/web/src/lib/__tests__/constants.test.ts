@@ -7,7 +7,11 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   ASPECT_RATIOS,
   getDefaultModel,
+  DEFAULT_IMAGE_RELAY_SETTINGS,
+  getResolutionPreset,
   IMAGE_RELAY_PRESETS,
+  migrateImageRelayUrl,
+  RESOLUTION_OPTIONS,
   loadSettings,
   PROVIDER_OPTIONS,
   STORAGE_KEY,
@@ -155,11 +159,28 @@ describe('PROVIDER_OPTIONS', () => {
 })
 
 describe('IMAGE_RELAY_PRESETS', () => {
-  it('should include the SSSZHUO relay alongside existing relays', () => {
-    expect(IMAGE_RELAY_PRESETS).toContainEqual({
-      value: 'https://ssszhuo.com',
-      label: 'SSSZHUO',
-    })
+  it('only offers the Tangzhi relay, which is also the default', () => {
+    expect(IMAGE_RELAY_PRESETS).toEqual([{ value: 'https://new.tangzhi.org', label: 'Tangzhi' }])
+    expect(DEFAULT_IMAGE_RELAY_SETTINGS.baseUrl).toBe('https://new.tangzhi.org')
+  })
+
+  it('migrates retired relay addresses saved in the browser', () => {
+    expect(migrateImageRelayUrl('https://sub2.hhlai.xyz')).toBe('https://new.tangzhi.org')
+    expect(migrateImageRelayUrl('ssszhuo.com/v1')).toBe('https://new.tangzhi.org')
+    expect(migrateImageRelayUrl('https://my-relay.example.com')).toBe('https://my-relay.example.com')
+    expect(migrateImageRelayUrl(undefined)).toBeUndefined()
+  })
+})
+
+describe('getResolutionPreset', () => {
+  const square = ASPECT_RATIOS.find((ratio) => ratio.label === '1:1')!
+  const wide = ASPECT_RATIOS.find((ratio) => ratio.label === '16:9')!
+
+  it('keeps 2K and 4K as native sizes on the long edge', () => {
+    expect(RESOLUTION_OPTIONS.map((option) => option.id)).toEqual(['720p', '1080p', '2k', '4k'])
+    expect(getResolutionPreset(square, '2k')).toEqual({ w: 2048, h: 2048 })
+    expect(getResolutionPreset(square, '4k')).toEqual({ w: 4096, h: 4096 })
+    expect(getResolutionPreset(wide, '4k')).toEqual({ w: 4096, h: 2304 })
   })
 })
 

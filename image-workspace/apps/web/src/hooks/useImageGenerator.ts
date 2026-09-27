@@ -35,6 +35,7 @@ import {
   ASPECT_RATIOS,
   type BatchPromptMode,
   DEFAULT_IMAGE_RELAY_SETTINGS,
+  migrateImageRelayUrl,
   DEFAULT_NEGATIVE_PROMPT,
   DEFAULT_PROMPT,
   findResolutionForDimensions,
@@ -98,7 +99,7 @@ export function useImageGenerator() {
     ...DEFAULT_IMAGE_RELAY_SETTINGS,
     ...(loadSettings().relaySettings || {}),
     baseUrl: normalizeImageRelayRoot(
-      loadSettings().relaySettings?.baseUrl || DEFAULT_IMAGE_RELAY_SETTINGS.baseUrl
+      migrateImageRelayUrl(loadSettings().relaySettings?.baseUrl) || DEFAULT_IMAGE_RELAY_SETTINGS.baseUrl
     ),
   }))
   const [generationMode, setGenerationMode] = useState<ImageGenerationMode>('generate')
@@ -367,7 +368,6 @@ export function useImageGenerator() {
       }
 
       const start = Date.now()
-      const upscale = resolutionLevel === '2k' || resolutionLevel === '4k' ? resolutionLevel : undefined
       const seed = Math.floor(Math.random() * 2147483647)
       const supportsNegative = selectedModelConfig?.features?.negativePrompt ?? true
       const effectiveNegativePrompt = supportsNegative ? negativePrompt : ''
@@ -409,13 +409,12 @@ export function useImageGenerator() {
                 quality: relaySettings.quality,
                 background: relaySettings.background,
                 outputFormat: relaySettings.outputFormat,
-                upscale,
               })
             }
             return generateWithCustomRelay({
               baseUrl: relaySettings.baseUrl,
               apiKey: token || '',
-              payload: { ...request, ...(upscale ? { upscale } : {}) },
+              payload: { ...request },
             })
           }
           return openai.generateImage(
@@ -438,7 +437,7 @@ export function useImageGenerator() {
         : await (await fetch(image.url as string)).blob()
 
       const actual = await imageDimensions(blob)
-      const outputStatus = imageOutputStatus(actual, { width, height }, upscale, result.upscale)
+      const outputStatus = imageOutputStatus(actual, { width, height }, undefined, result.upscale)
       if (outputStatus) {
         if (outputStatus.warning) toast.warning(outputStatus.message)
         addStatus(outputStatus.message)

@@ -24,7 +24,7 @@ const PRIVATE_V4 = /^(10\.|127\.|169\.254\.|192\.168\.|0\.|22[4-9]\.|23\d\.|24\d
 
 function allowedHosts(): Set<string> {
   return new Set(
-    (process.env.IMAGE_PROXY_ALLOWED_HOSTS || 'sub2.hhlai.xyz')
+    (process.env.IMAGE_PROXY_ALLOWED_HOSTS || 'new.tangzhi.org')
       .split(',')
       .map((host) => host.trim().toLowerCase())
       .filter(Boolean)

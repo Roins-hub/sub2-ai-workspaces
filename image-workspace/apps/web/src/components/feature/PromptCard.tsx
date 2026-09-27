@@ -646,10 +646,7 @@ export function PromptCard({
                   if (option) handleResolutionSelect(option.id)
                 }}
                 label={t('prompt.resolution')}
-                hint={resolutionLevel === '2k' || resolutionLevel === '4k' ? `AI 超分目标 ${width} × ${height} px` : t('prompt.resolutionHint', { width, height })}
-                notice={resolutionLevel === '2k' || resolutionLevel === '4k'
-                  ? '2K / 4K 为 AI 超分输出，并非模型原生生成。先校验所选比例，再超分至目标尺寸；明显不符时保留原图并提示。仅修正极小的像素取整偏差，原图足够大时跳过超分。'
-                  : undefined}
+                hint={t('prompt.resolutionHint', { width, height })}
                 valueLabel={
                   RESOLUTION_OPTIONS.find((option) => option.id === resolutionLevel)?.label ??
                   '720P'

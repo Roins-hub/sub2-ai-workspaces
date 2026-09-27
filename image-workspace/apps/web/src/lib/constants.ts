@@ -63,6 +63,7 @@ export function isResolutionLevel(value: unknown): value is ResolutionLevel {
 export function getResolutionPreset(ratio: AspectRatio, level: ResolutionLevel) {
   if (level === '1080p' && ratio.label === '16:9') return { w: 1920, h: 1080 }
   if (level === '1080p' && ratio.label === '9:16') return { w: 1080, h: 1920 }
+  // 2K / 4K 由中转站原生生成:长边 2048 / 4096,按所选比例计算短边
   if (level === '2k' || level === '4k') {
     const [w, h] = ratio.label.split(':').map(Number)
     const edge = level === '4k' ? 4096 : 2048
@@ -120,9 +121,18 @@ export type ImageGenerationMode = 'generate' | 'edit' | 'batch'
 export type BatchPromptMode = 'repeat' | 'lines'
 
 export const IMAGE_RELAY_PRESETS = [
-  { value: 'https://sub2.hhlai.xyz', label: 'HHL AI' },
-  { value: 'https://ssszhuo.com', label: 'SSSZHUO' },
+  { value: 'https://new.tangzhi.org', label: 'Tangzhi' },
 ] as const
+
+/** 已下线的中转站预设:本地保存的旧地址在加载时迁移到新的默认中转站 */
+export const RETIRED_IMAGE_RELAYS = ['https://sub2.hhlai.xyz', 'https://ssszhuo.com']
+
+export function migrateImageRelayUrl(value: string | undefined): string | undefined {
+  if (!value) return value
+  return RETIRED_IMAGE_RELAYS.includes(normalizeImageRelayRoot(value))
+    ? IMAGE_RELAY_PRESETS[0].value
+    : value
+}
 
 export function normalizeImageRelayRoot(input: string): string {
   let value = input
@@ -139,7 +149,7 @@ export function normalizeImageRelayRoot(input: string): string {
 }
 
 export const DEFAULT_IMAGE_RELAY_SETTINGS: ImageRelaySettings = {
-  baseUrl: 'https://sub2.hhlai.xyz',
+  baseUrl: 'https://new.tangzhi.org',
   quality: 'auto',
   background: 'auto',
   outputFormat: 'png',

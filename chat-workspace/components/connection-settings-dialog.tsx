@@ -33,7 +33,7 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
         <div className="space-y-6 px-6 py-5">
           <section className="space-y-2.5">
             <div className="text-sm font-medium">中转站</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className={cn("grid gap-2", Object.keys(PROVIDERS).length > 1 ? "grid-cols-2" : "grid-cols-1")}>
               {(Object.keys(PROVIDERS) as ProviderId[]).map((id) => (
                 <button
                   key={id}

@@ -606,7 +606,7 @@ function FlowCanvas() {
         provider={provider}
         model={model}
         currentToken={tokens[provider]}
-        relaySettings={{ baseUrl: 'https://sub2.hhlai.xyz/v1', quality: 'auto', background: 'auto', outputFormat: 'png' }}
+        relaySettings={{ baseUrl: 'https://new.tangzhi.org/v1', quality: 'auto', background: 'auto', outputFormat: 'png' }}
         setRelaySettings={() => undefined}
         availableModels={getModelsByProvider(provider)}
         setProvider={(p) => {

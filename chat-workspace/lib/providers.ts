@@ -1,17 +1,14 @@
 export const PROVIDERS = {
-  hhl: {
-    id: "hhl",
-    name: "HHL 中转站",
-    baseUrl: "https://sub2.hhlai.xyz",
-    shortUrl: "sub2.hhlai.xyz",
-  },
-  ssszhuo: {
-    id: "ssszhuo",
-    name: "SSSZHUO 中转站",
-    baseUrl: "https://ssszhuo.com",
-    shortUrl: "ssszhuo.com",
+  tangzhi: {
+    id: "tangzhi",
+    name: "Tangzhi 中转站",
+    baseUrl: "https://new.tangzhi.org",
+    shortUrl: "new.tangzhi.org",
   },
 } as const;
+
+/** 默认中转站;本地保存的旧中转站(已移除)会回落到这里 */
+export const DEFAULT_PROVIDER_ID: ProviderId = "tangzhi";
 
 export type ProviderId = keyof typeof PROVIDERS;
 
