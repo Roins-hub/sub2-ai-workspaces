@@ -8,6 +8,7 @@ import { PluginConfigDialog } from "@/components/plugin-config-dialog";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useTheme } from "@/components/theme-provider";
 import { getImageWorkspaceOrigin } from "@/lib/image-workspace";
+import { HOME_URL } from "@/lib/home";
 
 type WorkspaceHeaderProps = {
   onOpenSidebar: () => void;
@@ -50,7 +51,7 @@ export function WorkspaceHeader({
       <nav className="ms-auto flex items-center gap-0.5" aria-label="工作台导航">
         <TooltipIconButton
           tooltip="返回首页"
-          onClick={() => window.location.assign("https://first.sub2image.cc.cd")}
+          onClick={() => window.location.assign(HOME_URL)}
         >
           <Home />
         </TooltipIconButton>

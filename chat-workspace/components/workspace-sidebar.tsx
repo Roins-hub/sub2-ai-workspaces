@@ -9,6 +9,7 @@ import {
 } from "@/components/assistant-ui/thread-list";
 import { clearChatHistory, exportChatBackup, importChatBackup } from "@/lib/indexed-db-storage";
 import { cn } from "@/lib/utils";
+import { HOME_URL } from "@/lib/home";
 
 function HistoryTools() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -109,7 +110,7 @@ export function WorkspaceSidebar({ open, onClose, collapsed }: WorkspaceSidebarP
       >
         <div className="flex h-12 shrink-0 items-center justify-between px-2">
           <a
-            href="https://first.sub2image.cc.cd"
+            href={HOME_URL}
             className="flex min-w-0 items-center gap-2 overflow-hidden px-2 text-sm font-medium"
           >
             <MessageSquare className="size-5 shrink-0" strokeWidth={2.15} />
