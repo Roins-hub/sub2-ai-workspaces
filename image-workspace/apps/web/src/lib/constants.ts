@@ -61,15 +61,22 @@ export function isResolutionLevel(value: unknown): value is ResolutionLevel {
 }
 
 export function getResolutionPreset(ratio: AspectRatio, level: ResolutionLevel) {
+  if (level === '1080p' && ratio.label === '16:9') return { w: 1920, h: 1080 }
+  if (level === '1080p' && ratio.label === '9:16') return { w: 1080, h: 1920 }
+  if (level === '2k' || level === '4k') {
+    const [w, h] = ratio.label.split(':').map(Number)
+    const edge = level === '4k' ? 4096 : 2048
+    return { w: Math.round(w * edge / Math.max(w, h)), h: Math.round(h * edge / Math.max(w, h)) }
+  }
   const index = RESOLUTION_OPTIONS.findIndex((option) => option.id === level)
   return ratio.presets[index] ?? ratio.presets[0]
 }
 
 export function findResolutionForDimensions(width: number, height: number) {
   for (const ratio of ASPECT_RATIOS) {
-    const index = ratio.presets.findIndex((preset) => preset.w === width && preset.h === height)
-    if (index >= 0) {
-      return { ratio: ratio.label, level: RESOLUTION_OPTIONS[index]?.id ?? '720p' }
+    for (const { id } of RESOLUTION_OPTIONS) {
+      const preset = getResolutionPreset(ratio, id)
+      if (preset.w === width && preset.h === height) return { ratio: ratio.label, level: id }
     }
   }
   return null
@@ -114,7 +121,7 @@ export type BatchPromptMode = 'repeat' | 'lines'
 
 export const IMAGE_RELAY_PRESETS = [
   { value: 'https://sub2.hhlai.xyz', label: 'HHL AI' },
-  { value: 'https://xiaoxin8.com', label: 'Xiaoxin8' },
+  { value: 'https://ssszhuo.com', label: 'SSSZHUO' },
 ] as const
 
 export function normalizeImageRelayRoot(input: string): string {

@@ -163,7 +163,8 @@ describe('custom image proxy', () => {
     expect(firstBody.get('quality')).toBe('high')
 
     const fallbackBody = fetchSpy.mock.calls[1][1]?.body as FormData
-    expect(fallbackBody.get('prompt')).toBe('make it cinematic')
+    expect(String(fallbackBody.get('prompt'))).toContain('make it cinematic')
+    expect(String(fallbackBody.get('prompt'))).toContain('2:3，竖版')
     expect(fallbackBody.get('image')).toBeInstanceOf(Blob)
     expect(fallbackBody.get('model')).toBeNull()
     expect(fallbackBody.get('size')).toBeNull()

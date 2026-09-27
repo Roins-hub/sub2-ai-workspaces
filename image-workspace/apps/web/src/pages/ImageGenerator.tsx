@@ -26,6 +26,7 @@ export default function ImageGenerator() {
   useEffect(() => {
     window.localStorage.setItem('zenith-theme', theme)
     document.documentElement.style.colorScheme = theme
+    document.documentElement.dataset.zenithTheme = theme
   }, [theme])
 
   const closeGuide = () => {
@@ -65,6 +66,7 @@ export default function ImageGenerator() {
     setRelaySettings,
     setGenerationMode,
     handleReferenceImages,
+    removeReferenceImage,
     setBatchPromptMode,
     setBatchCount,
     setBatchConcurrency,
@@ -159,6 +161,7 @@ export default function ImageGenerator() {
                 referenceImages={referenceImages}
                 setGenerationMode={setGenerationMode}
                 onReferenceImagesChange={handleReferenceImages}
+                onRemoveReferenceImage={removeReferenceImage}
                 batchPromptMode={batchPromptMode}
                 batchCount={batchCount}
                 batchConcurrency={batchConcurrency}

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   ASPECT_RATIOS,
   getDefaultModel,
+  IMAGE_RELAY_PRESETS,
   loadSettings,
   PROVIDER_OPTIONS,
   STORAGE_KEY,
@@ -150,6 +151,15 @@ describe('PROVIDER_OPTIONS', () => {
       expect(provider.label).toBeTruthy()
       expect(typeof provider.label).toBe('string')
     }
+  })
+})
+
+describe('IMAGE_RELAY_PRESETS', () => {
+  it('should include the SSSZHUO relay alongside existing relays', () => {
+    expect(IMAGE_RELAY_PRESETS).toContainEqual({
+      value: 'https://ssszhuo.com',
+      label: 'SSSZHUO',
+    })
   })
 })
 

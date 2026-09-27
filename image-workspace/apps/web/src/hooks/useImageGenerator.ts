@@ -13,6 +13,7 @@ import {
 } from '@z-image/shared'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { imageOutputStatus } from '@/lib/image-output-status'
 import {
   buildChatTokenWithPrefix,
   buildImageTokenWithPrefix,
@@ -22,6 +23,7 @@ import {
   getFullChatModelId,
   getFullImageModelId,
   openai,
+  type RelayImageResponse,
 } from '@/lib/api'
 import {
   type BatchGenerationTask,
@@ -60,6 +62,7 @@ import type { ImageHistoryItem } from '@/lib/historyStore'
 import { getHistoryById, saveToHistory } from '@/lib/historyStore'
 import { checkStorageLimit, getBlob, storeBlob } from '@/lib/imageBlobStore'
 import { parseTokens, runWithTokenRotation } from '@/lib/tokenRotation'
+import { imageDimensions } from '@/lib/imageDimensions'
 
 type ImageDetailsWithMeta = ImageDetails & { historyId?: string; generatedAt?: number }
 type GenerationOutcome = {
@@ -69,6 +72,7 @@ type GenerationOutcome = {
   blobId?: string
   generatedAt: number
   savedLocally: boolean
+  outputWarning?: string
 }
 
 export function useImageGenerator() {
@@ -150,6 +154,7 @@ export function useImageGenerator() {
 
   // Update model when provider changes
   useEffect(() => {
+    if (provider === 'custom') return
     const models = getModelsByProvider(provider)
     if (!models.find((m) => m.id === model)) {
       setModel(getDefaultModel(provider))
@@ -271,11 +276,22 @@ export function useImageGenerator() {
 
   const handleReferenceImages = useCallback((files: File[]) => {
     const imageFiles = files.filter((file) => file.type.startsWith('image/'))
-    const accepted = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024).slice(0, 4)
+    const accepted = imageFiles.filter((file) => file.size <= 10 * 1024 * 1024)
     if (imageFiles.length !== files.length) toast.error('只能上传图片文件')
-    else if (accepted.length !== imageFiles.length)
+    else if (accepted.length !== imageFiles.length) {
       toast.error('最多上传 4 张图片，单张不能超过 10MB')
-    setReferenceImages(accepted)
+    }
+    setReferenceImages((current) => {
+      const remaining = Math.max(0, 4 - current.length)
+      if (accepted.length > remaining) {
+        toast.error('最多上传 4 张图片')
+      }
+      return [...current, ...accepted.slice(0, remaining)]
+    })
+  }, [])
+
+  const removeReferenceImage = useCallback((index: number) => {
+    setReferenceImages((current) => current.filter((_, itemIndex) => itemIndex !== index))
   }, [])
 
   const handleDelete = () => {
@@ -317,7 +333,7 @@ export function useImageGenerator() {
         url: localUrl,
         provider: item.providerName,
         model: item.modelName,
-        dimensions: `${item.width} x ${item.height}`,
+        dimensions: blob ? await imageDimensions(blob).then(({ width, height }) => `${width} x ${height}`) : `${item.width} x ${item.height}`,
         duration: item.duration || '',
         seed: item.seed,
         steps: item.steps,
@@ -351,6 +367,7 @@ export function useImageGenerator() {
       }
 
       const start = Date.now()
+      const upscale = resolutionLevel === '2k' || resolutionLevel === '4k' ? resolutionLevel : undefined
       const seed = Math.floor(Math.random() * 2147483647)
       const supportsNegative = selectedModelConfig?.features?.negativePrompt ?? true
       const effectiveNegativePrompt = supportsNegative ? negativePrompt : ''
@@ -392,12 +409,13 @@ export function useImageGenerator() {
                 quality: relaySettings.quality,
                 background: relaySettings.background,
                 outputFormat: relaySettings.outputFormat,
+                upscale,
               })
             }
             return generateWithCustomRelay({
               baseUrl: relaySettings.baseUrl,
               apiKey: token || '',
-              payload: { ...request },
+              payload: { ...request, ...(upscale ? { upscale } : {}) },
             })
           }
           return openai.generateImage(
@@ -410,20 +428,28 @@ export function useImageGenerator() {
 
       if (!rotated.success) throw new Error(rotated.error)
 
-      const image = rotated.data.data?.[0]
+      const result = rotated.data as RelayImageResponse
+      const image = result.data?.[0]
       if (!image?.url && !image?.b64_json) throw new Error('中转站没有返回图片')
       const blob = image.b64_json
         ? await (
-            await fetch(`data:image/${relaySettings.outputFormat};base64,${image.b64_json}`)
+            await fetch(`data:${image.mime_type || `image/${relaySettings.outputFormat}`};base64,${image.b64_json}`)
           ).blob()
         : await (await fetch(image.url as string)).blob()
+
+      const actual = await imageDimensions(blob)
+      const outputStatus = imageOutputStatus(actual, { width, height }, upscale, result.upscale)
+      if (outputStatus) {
+        if (outputStatus.warning) toast.warning(outputStatus.message)
+        addStatus(outputStatus.message)
+      }
 
       const duration = `${((Date.now() - start) / 1000).toFixed(1)}s`
       const details: ImageDetails = {
         url: '',
         provider: providerConfig.name,
         model,
-        dimensions: `${width} x ${height}`,
+        dimensions: `${actual.width} x ${actual.height}`,
         duration,
         seed,
         steps,
@@ -449,8 +475,8 @@ export function useImageGenerator() {
             providerName: details.provider,
             modelId: model,
             modelName: details.model,
-            width,
-            height,
+            width: actual.width,
+            height: actual.height,
             steps: details.steps,
             seed: details.seed,
             duration: details.duration,
@@ -458,7 +484,7 @@ export function useImageGenerator() {
           })
         : undefined
 
-      return { details, blob, historyId, blobId, generatedAt, savedLocally }
+      return { details, blob, historyId, blobId, generatedAt, savedLocally, outputWarning: outputStatus?.warning ? outputStatus.message : undefined }
     },
     [
       provider,
@@ -471,6 +497,8 @@ export function useImageGenerator() {
       height,
       relaySettings,
       steps,
+      resolutionLevel,
+      addStatus,
     ]
   )
 
@@ -509,6 +537,7 @@ export function useImageGenerator() {
 
     let successCount = 0
     let failureCount = 0
+    const outputWarnings: string[] = []
     const concurrency = Math.min(
       MAX_BATCH_CONCURRENCY,
       batchPromptMode === 'repeat' ? batchCount : batchConcurrency
@@ -527,6 +556,7 @@ export function useImageGenerator() {
         })
         try {
           const outcome = await generateOne(task.prompt, 'generate')
+          if (outcome.outputWarning) outputWarnings.push(`第 ${task.index + 1} 张：${outcome.outputWarning}`)
           const details = { ...outcome.details, url: showBatchBlob(outcome.blob) }
           successCount += 1
           updateBatchTask(task.id, {
@@ -561,9 +591,10 @@ export function useImageGenerator() {
     setLoading(false)
     const cancelledCount = tasks.length - successCount - failureCount
     setStatus(
-      `批量任务完成：成功 ${successCount}，失败 ${failureCount}${cancelledCount > 0 ? `，取消 ${cancelledCount}` : ''}`
+      [`批量任务完成：已返回 ${successCount}，失败 ${failureCount}${cancelledCount > 0 ? `，取消 ${cancelledCount}` : ''}`, ...outputWarnings].join('\n')
     )
-    if (failureCount === 0 && cancelledCount === 0) toast.success(`已生成 ${successCount} 张图片`)
+    if (outputWarnings.length) toast.warning(`已返回 ${successCount} 张图片，其中 ${outputWarnings.length} 张比例或尺寸未达标，请查看状态提示`)
+    else if (failureCount === 0 && cancelledCount === 0) toast.success(`已生成 ${successCount} 张图片`)
     else toast.warning(`批量任务完成：${successCount} 张成功，${failureCount} 张失败`)
   }, [
     batchPromptMode,
@@ -612,7 +643,7 @@ export function useImageGenerator() {
           savedLocally: outcome.savedLocally,
           finishedAt: Date.now(),
         })
-        toast.success('重试成功')
+        if (!outcome.outputWarning) toast.success('重试成功')
       } catch (error) {
         const message = error instanceof Error ? error.message : '生成失败'
         updateBatchTask(id, { status: 'error', error: message, finishedAt: Date.now() })
@@ -695,11 +726,11 @@ export function useImageGenerator() {
         historyId: outcome.historyId,
         generatedAt: outcome.generatedAt,
       })
-      addStatus(`Image generated in ${outcome.details.duration}!`)
+      addStatus(outcome.outputWarning ? `已保留返回图片，用时 ${outcome.details.duration}，请查看上方校验提示。` : `Image generated in ${outcome.details.duration}!`)
       if (!outcome.savedLocally) {
         toast.warning('浏览器存储空间不足，请先下载图片；本次结果不会写入历史记录')
       }
-      toast.success(generationMode === 'edit' ? 'Image edited!' : 'Image generated!')
+      if (!outcome.outputWarning) toast.success(generationMode === 'edit' ? 'Image edited!' : 'Image generated!')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'An error occurred'
       addStatus(`Error: ${msg}`)
@@ -1059,6 +1090,7 @@ export function useImageGenerator() {
     setRelaySettings,
     setGenerationMode,
     handleReferenceImages,
+    removeReferenceImage,
     setBatchPromptMode,
     setBatchCount,
     setBatchConcurrency,

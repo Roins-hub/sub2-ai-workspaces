@@ -5,11 +5,11 @@ export const PROVIDERS = {
     baseUrl: "https://sub2.hhlai.xyz",
     shortUrl: "sub2.hhlai.xyz",
   },
-  xiaoxin: {
-    id: "xiaoxin",
-    name: "小新中转站",
-    baseUrl: "https://xiaoxin8.com",
-    shortUrl: "xiaoxin8.com",
+  ssszhuo: {
+    id: "ssszhuo",
+    name: "SSSZHUO 中转站",
+    baseUrl: "https://ssszhuo.com",
+    shortUrl: "ssszhuo.com",
   },
 } as const;
 

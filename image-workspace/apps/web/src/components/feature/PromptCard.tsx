@@ -65,6 +65,7 @@ interface PromptCardProps {
   referenceImages: File[]
   setGenerationMode: (mode: ImageGenerationMode) => void
   onReferenceImagesChange: (files: File[]) => void
+  onRemoveReferenceImage: (index: number) => void
   batchPromptMode: BatchPromptMode
   batchCount: number
   batchConcurrency: number
@@ -79,6 +80,7 @@ interface SteppedRangeControlProps {
   value: number
   label: string
   hint: string
+  notice?: string
   valueLabel: string
   ariaLabel: string
   disabled: boolean
@@ -91,6 +93,7 @@ function SteppedRangeControl({
   value,
   label,
   hint,
+  notice,
   valueLabel,
   ariaLabel,
   disabled,
@@ -159,6 +162,11 @@ function SteppedRangeControl({
           ))}
         </div>
       </div>
+      {notice && (
+        <p role="note" className="mt-4 text-xs leading-relaxed text-zinc-500">
+          {notice}
+        </p>
+      )}
     </div>
   )
 }
@@ -199,6 +207,7 @@ export function PromptCard({
   referenceImages,
   setGenerationMode,
   onReferenceImagesChange,
+  onRemoveReferenceImage,
   batchPromptMode,
   batchCount,
   batchConcurrency,
@@ -538,11 +547,7 @@ export function PromptCard({
                           type="button"
                           aria-label="删除参考图"
                           className="absolute right-1 top-1 hidden rounded-lg bg-black/70 p-1 text-white group-hover:block"
-                          onClick={() =>
-                            onReferenceImagesChange(
-                              referenceImages.filter((_, itemIndex) => itemIndex !== index)
-                            )
-                          }
+                          onClick={() => onRemoveReferenceImage(index)}
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -641,7 +646,10 @@ export function PromptCard({
                   if (option) handleResolutionSelect(option.id)
                 }}
                 label={t('prompt.resolution')}
-                hint={t('prompt.resolutionHint', { width, height })}
+                hint={resolutionLevel === '2k' || resolutionLevel === '4k' ? `AI 超分目标 ${width} × ${height} px` : t('prompt.resolutionHint', { width, height })}
+                notice={resolutionLevel === '2k' || resolutionLevel === '4k'
+                  ? '2K / 4K 为 AI 超分输出，并非模型原生生成。先校验所选比例，再超分至目标尺寸；明显不符时保留原图并提示。仅修正极小的像素取整偏差，原图足够大时跳过超分。'
+                  : undefined}
                 valueLabel={
                   RESOLUTION_OPTIONS.find((option) => option.id === resolutionLevel)?.label ??
                   '720P'

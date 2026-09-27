@@ -3,11 +3,8 @@ import { frontendTools, injectQuoteContext, type FrontendTools } from "@assistan
 import { streamText, convertToModelMessages, type ToolSet, type UIMessage } from "ai";
 import { isProviderId, normalizeApiKey, normalizeModel, providerApiBase } from "@/lib/providers";
 import { IMAGE_WORKSPACE_TOOL_NAME } from "@/lib/image-workspace";
-import {
-  clampReasoningEffort,
-  DEFAULT_REASONING_EFFORT,
-  normalizeReasoningEffort,
-} from "@/lib/reasoning";
+import { reasoningOptionsForModel } from "@/lib/reasoning";
+import { usesChatCompletions, repairResponsesStream, chatErrorMessage } from "@/lib/relay-compat";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -155,15 +152,18 @@ export async function POST(req: Request) {
     return errorResponse("工具定义过大。", 413);
   }
 
+  const chatProtocol = usesChatCompletions(model);
   const openai = createOpenAI({
     baseURL: providerApiBase(body.provider),
     apiKey,
+    fetch: async (url, init) => {
+      const response = await fetch(url, init);
+      return chatProtocol ? response : repairResponsesStream(response);
+    },
   });
 
   const webSearchEnabled = body.webSearch === true;
-  const requestedReasoningEffort =
-    normalizeReasoningEffort(body.reasoningEffort) ?? DEFAULT_REASONING_EFFORT;
-  const reasoningEffort = clampReasoningEffort(model, requestedReasoningEffort);
+  const reasoningOptions = reasoningOptionsForModel(model, body.reasoningEffort);
   const imagePluginEnabled = body.imagePluginEnabled !== false;
 
   const enabledUploadedTools = { ...(uploadedTools as Record<string, unknown>) };
@@ -200,6 +200,12 @@ export async function POST(req: Request) {
   const mcpToolName = mcpToolMatches[0] ?? null;
   const hasMcpCommand = mcpToolName !== null;
   const hasMcpRequest = hasMcpCommand && Boolean(slashCommand?.request);
+  if (chatProtocol && webSearchEnabled && !hasImageCommand && !hasMcpCommand) {
+    return errorResponse(
+      "Gemini 当前使用 Chat Completions 接口，不支持此联网开关。请关闭联网后重试，或使用 MCP 搜索工具。",
+      400,
+    );
+  }
   const imageTool: ToolSet = imagePluginEnabled ? frontendTools(IMAGE_TOOL_SCHEMA) : {};
   const tools: ToolSet = {
     ...clientTools,
@@ -246,7 +252,7 @@ export async function POST(req: Request) {
     : [commandSystem, FILE_OUTPUT_SYSTEM].filter(Boolean).join("\n\n");
 
   const result = streamText({
-    model: openai.responses(model),
+    model: chatProtocol ? openai.chat(model) : openai.responses(model),
     messages: await convertToModelMessages(injectQuoteContext(body.messages), { tools }),
     system,
     tools,
@@ -254,7 +260,7 @@ export async function POST(req: Request) {
     providerOptions: {
       openai: {
         store: false,
-        ...(reasoningEffort ? { reasoningEffort } : {}),
+        ...reasoningOptions,
       },
     },
     ...(hasImageRequest
@@ -273,7 +279,6 @@ export async function POST(req: Request) {
   return result.toUIMessageStreamResponse({
     sendReasoning: true,
     sendSources: true,
-    onError: (error) =>
-      error instanceof Error ? `请求失败：${error.message}` : "请求失败，请稍后重试。",
+    onError: chatErrorMessage,
   });
 }

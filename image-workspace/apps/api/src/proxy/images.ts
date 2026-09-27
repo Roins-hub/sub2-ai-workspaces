@@ -2,6 +2,7 @@ import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { Hono } from 'hono'
 import { bodyLimit, rateLimitPresets } from '../middleware'
+import { generationSize, parseUpscaleTier, upscaleImages, withComposition } from './image-output'
 
 type ProxyBody = {
   baseUrl?: string
@@ -160,10 +161,15 @@ export function registerImageProxy(app: Hono) {
 
     try {
       const endpoint = endpointFor(await validateUrl(body.baseUrl, true))
+      const { upscale, ...payload } = body.payload
+      const tier = parseUpscaleTier(upscale)
+      const requestedSize = payload.size
+      payload.prompt = withComposition(payload.prompt, requestedSize)
+      if (tier) payload.size = generationSize(payload.size)
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { Authorization: `Bearer ${body.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body.payload),
+        body: JSON.stringify(payload),
         redirect: 'error',
         signal: AbortSignal.timeout(300000),
       })
@@ -182,7 +188,8 @@ export function registerImageProxy(app: Hono) {
       )
       const valid = images.filter((item): item is { b64_json: string } => item !== null)
       if (!valid.length) return c.json({ error: { message: '中转站没有返回图片' } }, 502)
-      return c.json({ created: Math.floor(Date.now() / 1000), data: valid })
+      const result = await upscaleImages(valid, tier, payload.output_format, requestedSize)
+      return c.json({ created: Math.floor(Date.now() / 1000), ...result })
     } catch (error) {
       const message = error instanceof Error ? error.message : '代理请求失败'
       return c.json({ error: { message } }, 502)
@@ -223,6 +230,10 @@ export function registerImageProxy(app: Hono) {
 
     try {
       const endpoint = editEndpointFor(await validateUrl(baseUrl, true))
+      const tier = parseUpscaleTier(form.get('upscale'))
+      const requestedSize = form.get('size')
+      form.set('prompt', withComposition(prompt, requestedSize))
+      if (tier) form.set('size', generationSize(form.get('size')))
       const sendEdit = (upstream: FormData) => fetch(endpoint, {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}` },
@@ -235,7 +246,7 @@ export function registerImageProxy(app: Hono) {
         await sendEdit(buildEditForm(form, images, model, true))
       )
 
-      if (!upstreamResult.response.ok && isNoCompatibleImageAccount(upstreamResult.data)) {
+      if (model === 'gpt-image-2' && !upstreamResult.response.ok && isNoCompatibleImageAccount(upstreamResult.data)) {
         upstreamResult = await parseUpstreamImageResponse(
           await sendEdit(buildEditForm(form, images, model, false))
         )
@@ -255,7 +266,8 @@ export function registerImageProxy(app: Hono) {
       )
       const valid = result.filter((item): item is { b64_json: string } => item !== null)
       if (!valid.length) return c.json({ error: { message: '中转站没有返回图片' } }, 502)
-      return c.json({ created: Math.floor(Date.now() / 1000), data: valid })
+      const upscaled = await upscaleImages(valid, tier, form.get('output_format'), requestedSize)
+      return c.json({ created: Math.floor(Date.now() / 1000), ...upscaled })
     } catch (error) {
       const message = error instanceof Error ? error.message : '代理请求失败'
       return c.json({ error: { message } }, 502)

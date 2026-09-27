@@ -120,18 +120,23 @@ export class OpenAIClient {
 
 export const openai = new OpenAIClient(API_URL)
 
+export type RelayImageResponse = Omit<OpenAIImageResponse, 'data'> & {
+  data: Array<{ url?: string; b64_json?: string; mime_type?: string }>
+  upscale?: { status: string; original_width?: number; original_height?: number; width?: number; height?: number; meets_target?: boolean }
+}
+
 export async function generateWithCustomRelay(request: {
   baseUrl: string
   apiKey: string
   payload: Record<string, unknown>
-}): Promise<OpenAIImageResponse> {
+}): Promise<RelayImageResponse> {
   const res = await fetch(`${API_URL}/api/proxy/images/generations`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
   })
   if (!res.ok) throw await readOpenAIError(res)
-  return (await res.json()) as OpenAIImageResponse
+  return (await res.json()) as RelayImageResponse
 }
 
 export async function editWithCustomRelay(request: {
@@ -144,7 +149,8 @@ export async function editWithCustomRelay(request: {
   quality?: string
   background?: string
   outputFormat?: string
-}): Promise<OpenAIImageResponse> {
+  upscale?: '2k' | '4k'
+}): Promise<RelayImageResponse> {
   const form = new FormData()
   form.set('baseUrl', request.baseUrl)
   form.set('apiKey', request.apiKey)
@@ -155,6 +161,7 @@ export async function editWithCustomRelay(request: {
     ['quality', request.quality],
     ['background', request.background],
     ['output_format', request.outputFormat],
+    ['upscale', request.upscale],
   ] as const) {
     if (value) form.set(key, value)
   }
@@ -162,7 +169,7 @@ export async function editWithCustomRelay(request: {
 
   const res = await fetch(`${API_URL}/api/proxy/images/edits`, { method: 'POST', body: form })
   if (!res.ok) throw await readOpenAIError(res)
-  return (await res.json()) as OpenAIImageResponse
+  return (await res.json()) as RelayImageResponse
 }
 
 export function buildImageTokenWithPrefix(provider: ProviderType, token: string): string {
