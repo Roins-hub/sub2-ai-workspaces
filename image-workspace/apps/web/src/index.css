@@ -144,6 +144,21 @@
   background-color: rgb(255 255 255 / 0.96);
 }
 
+/* Radix Select renders its content in a body-level portal, outside the
+   `.zenith-light` app wrapper. Keep select popovers aligned with the active
+   page theme in light mode. */
+html[data-zenith-theme='light'] [data-slot='select-content'] {
+  background-color: #ffffff;
+  color: #18181b;
+  border-color: #d4d4d8;
+}
+
+html[data-zenith-theme='light'] [data-slot='select-item']:focus,
+html[data-zenith-theme='light'] [data-slot='select-item'][data-highlighted] {
+  background-color: #e4e4e7;
+  color: #18181b;
+}
+
 .zenith-light .bg-zinc-800\/30,
 .zenith-light .bg-zinc-800\/50,
 .zenith-light .bg-zinc-800\/60,
