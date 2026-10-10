@@ -1,3 +1,4 @@
+import { chatModelIds, type RelayModel } from "@/lib/chat-models";
 import { isProviderId, normalizeApiKey, PROVIDERS } from "@/lib/providers";
 
 export const runtime = "nodejs";
@@ -56,14 +57,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const payload = JSON.parse(raw) as { data?: Array<{ id?: unknown }> };
-    const models = Array.from(
-      new Set(
-        (payload.data ?? [])
-          .map((item) => item.id)
-          .filter((id): id is string => typeof id === "string" && id.length > 0),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
+    const payload = JSON.parse(raw) as { data?: RelayModel[] };
+    // 聊天只列文本模型:中转站同时提供的视频、图片生成模型不显示
+    const models = chatModelIds(payload.data ?? []);
 
     return Response.json({ models }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
