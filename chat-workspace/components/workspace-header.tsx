@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, ImageIcon, Menu, Moon, PanelLeft, Settings2, Sun } from "lucide-react";
+import { Clapperboard, Home, ImageIcon, Menu, Moon, PanelLeft, Settings2, Sun } from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
 import { ConnectionSettingsDialog } from "@/components/connection-settings-dialog";
 import { McpConfigDialog } from "@/components/assistant-ui/mcp-config";
@@ -9,6 +9,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { useTheme } from "@/components/theme-provider";
 import { getImageWorkspaceOrigin } from "@/lib/image-workspace";
 import { HOME_URL } from "@/lib/home";
+import { VIDEO_WORKSPACE_URL } from "@/lib/video-workspace";
 
 type WorkspaceHeaderProps = {
   onOpenSidebar: () => void;
@@ -60,6 +61,12 @@ export function WorkspaceHeader({
           onClick={() => window.location.assign(getImageWorkspaceOrigin())}
         >
           <ImageIcon />
+        </TooltipIconButton>
+        <TooltipIconButton
+          tooltip="视频工作台"
+          onClick={() => window.location.assign(VIDEO_WORKSPACE_URL)}
+        >
+          <Clapperboard />
         </TooltipIconButton>
         <TooltipIconButton
           tooltip={theme === "dark" ? "切换到浅色" : "切换到深色"}
