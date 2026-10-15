@@ -134,6 +134,28 @@ export default function ImageGenerator() {
             onThemeToggle={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
           />
 
+          {/* 生图已并入视频工作台:同一个账号,图片可以直接做成视频 */}
+          <div
+            className={`mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border px-4 py-3 text-sm ${
+              theme === 'dark'
+                ? 'border-zinc-800 bg-zinc-900/70 text-zinc-300'
+                : 'border-slate-200 bg-white text-slate-600'
+            }`}
+          >
+            <strong className={theme === 'dark' ? 'text-zinc-100' : 'text-slate-900'}>
+              生图已并入 Mote 工作台
+            </strong>
+            <span>
+              在模型列表的「图片」组里选择生图模型，生成的图片存在账号里，还能一键做成视频。
+            </span>
+            <a
+              className="ml-auto font-medium underline underline-offset-4"
+              href="https://vip.tangzhi.org/"
+            >
+              前往 vip.tangzhi.org
+            </a>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Left Panel - Controls */}
             <div className="lg:col-span-3 space-y-4">
