@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { applyMoteTheme, MOTE_MODE, MOTE_THEME_KEY } from "@/lib/mote";
 
 type Theme = "light" | "dark";
 
@@ -15,6 +16,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const active = document.documentElement.classList.contains("dark") ? "dark" : "light";
     setTheme(active);
+    if (!MOTE_MODE) return;
+    const sync = () => {
+      applyMoteTheme();
+      setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === MOTE_THEME_KEY) sync();
+    };
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    window.addEventListener("storage", onStorage);
+    media.addEventListener("change", sync);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      media.removeEventListener("change", sync);
+    };
   }, []);
 
   const toggleTheme = () => {

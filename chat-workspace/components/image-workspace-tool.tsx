@@ -9,6 +9,7 @@ import {
   buildImageWorkspaceUrl,
   getImageWorkspaceOrigin,
 } from "@/lib/image-workspace";
+import { MOTE_MODE, moteComposeUrl } from "@/lib/mote";
 
 type ImageWorkspaceArgs = {
   prompt: string;
@@ -28,7 +29,9 @@ function ImageWorkspaceToolCard({
 
   useEffect(() => setOrigin(getImageWorkspaceOrigin()), []);
 
-  const href = prompt ? buildImageWorkspaceUrl(prompt, origin) : origin;
+  const href = MOTE_MODE
+    ? moteComposeUrl(prompt)
+    : prompt ? buildImageWorkspaceUrl(prompt, origin) : origin;
 
   return (
     <section className="my-3 w-full max-w-2xl overflow-hidden rounded-xl border bg-card text-card-foreground">
@@ -57,7 +60,7 @@ function ImageWorkspaceToolCard({
           }}
           className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-3.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 aria-disabled:pointer-events-none aria-disabled:opacity-50"
         >
-          前往生图工作台 <ArrowRight className="size-4" />
+          {MOTE_MODE ? "去工作台生图" : "前往生图工作台"} <ArrowRight className="size-4" />
         </a>
       </div>
     </section>
@@ -84,7 +87,7 @@ export const imageWorkspaceToolkit = defineToolkit({
       required: ["prompt"],
     },
     execute: async ({ prompt }: ImageWorkspaceArgs): Promise<ImageWorkspaceResult> => ({
-      url: buildImageWorkspaceUrl(prompt.trim()),
+      url: MOTE_MODE ? moteComposeUrl(prompt.trim()) : buildImageWorkspaceUrl(prompt.trim()),
     }),
     render: ImageWorkspaceToolCard,
   },

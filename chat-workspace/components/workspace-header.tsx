@@ -10,6 +10,7 @@ import { useTheme } from "@/components/theme-provider";
 import { getImageWorkspaceOrigin } from "@/lib/image-workspace";
 import { HOME_URL } from "@/lib/home";
 import { VIDEO_WORKSPACE_URL } from "@/lib/video-workspace";
+import { MOTE_HOME, MOTE_MODE } from "@/lib/mote";
 
 type WorkspaceHeaderProps = {
   onOpenSidebar: () => void;
@@ -50,30 +51,39 @@ export function WorkspaceHeader({
       </div>
 
       <nav className="ms-auto flex items-center gap-0.5" aria-label="工作台导航">
-        <TooltipIconButton
-          tooltip="返回首页"
-          onClick={() => window.location.assign(HOME_URL)}
-        >
-          <Home />
-        </TooltipIconButton>
-        <TooltipIconButton
-          tooltip="生图工作台"
-          onClick={() => window.location.assign(getImageWorkspaceOrigin())}
-        >
-          <ImageIcon />
-        </TooltipIconButton>
-        <TooltipIconButton
-          tooltip="视频工作台"
-          onClick={() => window.location.assign(VIDEO_WORKSPACE_URL)}
-        >
-          <Clapperboard />
-        </TooltipIconButton>
-        <TooltipIconButton
-          tooltip={theme === "dark" ? "切换到浅色" : "切换到深色"}
-          onClick={toggleTheme}
-        >
-          {theme === "dark" ? <Sun /> : <Moon />}
-        </TooltipIconButton>
+        {MOTE_MODE ? (
+          // 和视频、图片同一个网站:一个入口回工作台;主题在工作台设置里统一切换
+          <TooltipIconButton tooltip="视频 · 图片工作台" onClick={() => window.location.assign(MOTE_HOME)}>
+            <Clapperboard />
+          </TooltipIconButton>
+        ) : (
+          <>
+            <TooltipIconButton
+              tooltip="返回首页"
+              onClick={() => window.location.assign(HOME_URL)}
+            >
+              <Home />
+            </TooltipIconButton>
+            <TooltipIconButton
+              tooltip="生图工作台"
+              onClick={() => window.location.assign(getImageWorkspaceOrigin())}
+            >
+              <ImageIcon />
+            </TooltipIconButton>
+            <TooltipIconButton
+              tooltip="视频工作台"
+              onClick={() => window.location.assign(VIDEO_WORKSPACE_URL)}
+            >
+              <Clapperboard />
+            </TooltipIconButton>
+            <TooltipIconButton
+              tooltip={theme === "dark" ? "切换到浅色" : "切换到深色"}
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? <Sun /> : <Moon />}
+            </TooltipIconButton>
+          </>
+        )}
         <PluginConfigDialog />
         <McpConfigDialog />
         <ConnectionSettingsDialog

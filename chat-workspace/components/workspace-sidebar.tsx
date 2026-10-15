@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useState, type MouseEvent } from "react";
-import { Download, FileUp, MessageSquare, Trash2, X } from "lucide-react";
+import { Clapperboard, Download, FileUp, MessageSquare, Trash2, X } from "lucide-react";
 import {
   ThreadListItems,
   ThreadListNew,
   ThreadListRoot,
 } from "@/components/assistant-ui/thread-list";
-import { clearChatHistory, exportChatBackup, importChatBackup } from "@/lib/indexed-db-storage";
+import { clearAllChatHistory, exportChatHistory, importChatHistory } from "@/lib/chat-storage";
+import { MOTE_HOME, MOTE_MODE } from "@/lib/mote";
 import { cn } from "@/lib/utils";
 import { HOME_URL } from "@/lib/home";
 
@@ -18,7 +19,7 @@ function HistoryTools() {
   const exportHistory = async () => {
     setBusy(true);
     try {
-      const json = await exportChatBackup();
+      const json = await exportChatHistory();
       const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -33,7 +34,8 @@ function HistoryTools() {
   const importHistory = async (file: File) => {
     setBusy(true);
     try {
-      await importChatBackup(await file.text());
+      if (MOTE_MODE && !window.confirm("导入会替换当前账号里的全部聊天记录，确定继续吗？")) return;
+      await importChatHistory(await file.text());
       location.reload();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "导入失败");
@@ -43,10 +45,16 @@ function HistoryTools() {
   };
 
   const clearHistory = async () => {
-    if (!window.confirm("确定清空此浏览器中的全部聊天记录吗？此操作无法撤销。")) return;
+    const scope = MOTE_MODE ? "当前账号" : "此浏览器";
+    if (!window.confirm(`确定清空${scope}中的全部聊天记录吗？此操作无法撤销。`)) return;
     setBusy(true);
-    await clearChatHistory();
-    location.reload();
+    try {
+      await clearAllChatHistory();
+      location.reload();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "清空失败");
+      setBusy(false);
+    }
   };
 
   return (
@@ -110,11 +118,12 @@ export function WorkspaceSidebar({ open, onClose, collapsed }: WorkspaceSidebarP
       >
         <div className="flex h-12 shrink-0 items-center justify-between px-2">
           <a
-            href={HOME_URL}
+            href={MOTE_MODE ? MOTE_HOME : HOME_URL}
             className="flex min-w-0 items-center gap-2 overflow-hidden px-2 text-sm font-medium"
+            title={MOTE_MODE ? "回到视频 · 图片工作台" : undefined}
           >
             <MessageSquare className="size-5 shrink-0" strokeWidth={2.15} />
-            <span className="whitespace-nowrap text-foreground/90">SUB2 聊天</span>
+            <span className="whitespace-nowrap text-foreground/90">{MOTE_MODE ? "Mote 对话" : "SUB2 聊天"}</span>
           </a>
           <button
             className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted md:hidden"
@@ -163,6 +172,11 @@ export function WorkspaceSidebar({ open, onClose, collapsed }: WorkspaceSidebarP
             collapsed && "md:pointer-events-none md:opacity-0",
           )}
         >
+          {MOTE_MODE && (
+            <a href={MOTE_HOME} className="history-tool mx-2 mt-1 flex justify-start gap-2 px-2.5">
+              <Clapperboard /> 视频 · 图片工作台
+            </a>
+          )}
           <HistoryTools />
         </div>
       </aside>

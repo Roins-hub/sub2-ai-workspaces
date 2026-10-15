@@ -21,6 +21,7 @@ import {
   type ProviderId,
 } from "@/lib/providers";
 import { cn } from "@/lib/utils";
+import { MOTE_MODE, MOTE_SETTINGS } from "@/lib/mote";
 
 export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement }) {
   const settings = useChatSettings();
@@ -45,11 +46,28 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
         <DialogHeader className="border-b px-6 py-5">
           <DialogTitle className="text-lg font-semibold">连接设置</DialogTitle>
           <DialogDescription>
-            Key 只用于转发请求，可选择仅在本次浏览器会话中保存。
+            {MOTE_MODE
+              ? "与视频、图片工作台共用同一个 API Key 和中转站。"
+              : "Key 只用于转发请求，可选择仅在本次浏览器会话中保存。"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 px-6 py-5">
+          {MOTE_MODE && (
+            <section className="space-y-1.5 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+              <div className="flex items-center gap-2 font-medium">
+                <KeyRound className="size-4" />
+                {settings.apiKey ? "已使用工作台的 API Key" : "还没有填写 API Key"}
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                中转站：{activeShortUrl || "new.tangzhi.org"}。Key 和中转站地址在工作台设置里修改，聊天会自动同步。
+              </p>
+              <a className="inline-block text-xs font-medium underline underline-offset-4" href={MOTE_SETTINGS}>
+                打开工作台设置
+              </a>
+            </section>
+          )}
+          {!MOTE_MODE && <>
           <section className="space-y-2.5">
             <div className="text-sm font-medium">中转站</div>
             <div className="grid grid-cols-2 gap-2">
@@ -143,6 +161,7 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
               />
             </label>
           </section>
+          </>}
 
           <section className="space-y-2.5">
             <div className="flex items-center justify-between">

@@ -14,7 +14,7 @@ import type {
   MessageFormatRepository,
   ThreadHistoryAdapter,
 } from "@assistant-ui/core";
-import { indexedDbStorage } from "@/lib/indexed-db-storage";
+import { chatStorage } from "@/lib/chat-storage";
 
 const PREFIX = "sub2chat:";
 const mutationTails = new Map<string, Promise<void>>();
@@ -73,14 +73,14 @@ function IndexedDbHistoryProvider({ children }: { children?: React.ReactNode }) 
           async load() {
             const remoteId = await getRemoteId(false);
             if (!remoteId) return { messages: [] };
-            return parseRepository<TMessage>(await indexedDbStorage.getItem(keyFor(remoteId)));
+            return parseRepository<TMessage>(await chatStorage.getItem(keyFor(remoteId)));
           },
           async append(item) {
             const remoteId = await getRemoteId(true);
             if (!remoteId) return;
             const key = keyFor(remoteId);
             await queued(key, async () => {
-              const repository = parseRepository<TMessage>(await indexedDbStorage.getItem(key));
+              const repository = parseRepository<TMessage>(await chatStorage.getItem(key));
               const id = formatAdapter.getId(item.message);
               const index = repository.messages.findIndex(
                 (stored) => formatAdapter.getId(stored.message) === id,
@@ -88,7 +88,7 @@ function IndexedDbHistoryProvider({ children }: { children?: React.ReactNode }) 
               if (index >= 0) repository.messages[index] = item;
               else repository.messages.push(item);
               repository.headId = id;
-              await indexedDbStorage.setItem(key, JSON.stringify(repository));
+              await chatStorage.setItem(key, JSON.stringify(repository));
             });
           },
           async update(item, localMessageId) {
@@ -96,14 +96,14 @@ function IndexedDbHistoryProvider({ children }: { children?: React.ReactNode }) 
             if (!remoteId) return;
             const key = keyFor(remoteId);
             await queued(key, async () => {
-              const repository = parseRepository<TMessage>(await indexedDbStorage.getItem(key));
+              const repository = parseRepository<TMessage>(await chatStorage.getItem(key));
               const index = repository.messages.findIndex(
                 (stored) => formatAdapter.getId(stored.message) === localMessageId,
               );
               if (index >= 0) repository.messages[index] = item;
               else repository.messages.push(item);
               repository.headId = formatAdapter.getId(item.message);
-              await indexedDbStorage.setItem(key, JSON.stringify(repository));
+              await chatStorage.setItem(key, JSON.stringify(repository));
             });
           },
           async delete(items: MessageFormatItem<TMessage>[]) {
@@ -112,14 +112,14 @@ function IndexedDbHistoryProvider({ children }: { children?: React.ReactNode }) 
             const key = keyFor(remoteId);
             const deletedIds = new Set(items.map((item) => formatAdapter.getId(item.message)));
             await queued(key, async () => {
-              const repository = parseRepository<TMessage>(await indexedDbStorage.getItem(key));
+              const repository = parseRepository<TMessage>(await chatStorage.getItem(key));
               repository.messages = repository.messages.filter(
                 (stored) => !deletedIds.has(formatAdapter.getId(stored.message)),
               );
               repository.headId = repository.messages.at(-1)
                 ? formatAdapter.getId(repository.messages.at(-1)!.message)
                 : null;
-              await indexedDbStorage.setItem(key, JSON.stringify(repository));
+              await chatStorage.setItem(key, JSON.stringify(repository));
             });
           },
         };
@@ -132,7 +132,7 @@ function IndexedDbHistoryProvider({ children }: { children?: React.ReactNode }) 
 }
 
 const baseAdapter = createLocalStorageAdapter({
-  storage: indexedDbStorage,
+  storage: chatStorage,
   prefix: PREFIX,
   titleGenerator: createSimpleTitleAdapter(),
 });

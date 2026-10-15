@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { MOTE_MODE, moteThemeScript } from "@/lib/mote";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "SUB2 Chat - 聊天工作台",
-  description: "使用自有 API Key 的本地优先 AI 聊天工作台",
-};
+export const metadata: Metadata = MOTE_MODE
+  ? { title: "Mote · 对话", description: "与视频、图片工作台共用账号的 AI 对话" }
+  : { title: "SUB2 Chat - 聊天工作台", description: "使用自有 API Key 的本地优先 AI 聊天工作台" };
 
 const themeScript = `
   try {
@@ -24,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: MOTE_MODE ? moteThemeScript : themeScript }} />
       </head>
       <body>
         <ThemeProvider>

@@ -23,6 +23,7 @@ import { PluginSettingsProvider, usePluginSettings } from "@/components/plugin-s
 import { indexedDbThreadAdapter } from "@/lib/thread-adapter";
 import { imageWorkspaceToolkit } from "@/components/image-workspace-tool";
 import { IMAGE_WORKSPACE_TOOL_NAME } from "@/lib/image-workspace";
+import { BASE_PATH, MIGRATE_URL, MOTE_MODE, withBasePath } from "@/lib/mote";
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
@@ -48,6 +49,10 @@ const assistantConfig = AuiConfig({
   mcp: McpManagerResource({
     connectors: [],
     storage: McpLocalStorage({ keyPrefix: "sub2-chat-mcp" }),
+    // 挂在子路径下时授权回调也要带上前缀
+    ...(BASE_PATH && typeof window !== "undefined"
+      ? { oauthRedirectUri: `${window.location.origin}${BASE_PATH}/mcp/callback` }
+      : {}),
     connectionTimeout: 15_000,
   }),
 });
@@ -85,7 +90,7 @@ function ChatRuntime({ children }: { children: React.ReactNode }) {
   const transport = useMemo(
     () =>
       new AssistantChatTransport({
-        api: "/api/chat",
+        api: withBasePath("/api/chat"),
         prepareSendMessagesRequest: async (options) => ({
           body: {
             ...(options.body as Record<string, unknown> | undefined),
@@ -140,6 +145,7 @@ function Workspace() {
           collapsed={sidebarCollapsed}
         />
         <div className="chat-panel-shell flex min-w-0 flex-1 flex-col overflow-hidden p-2 md:ps-0">
+          {!MOTE_MODE && MIGRATE_URL && <MigrationNotice />}
           <main className="chat-panel relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-background">
             <WorkspaceHeader
               onOpenSidebar={() => setSidebarOpen(true)}
@@ -152,6 +158,21 @@ function Workspace() {
           </main>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** 旧站提示:聊天已经搬到工作台,导出记录后到新地址导入 */
+function MigrationNotice() {
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-card px-3.5 py-2.5 text-sm">
+      <strong className="font-medium">聊天已搬到工作台</strong>
+      <span className="text-muted-foreground">
+        和视频、图片在同一个网站，记录保存在服务器上、换设备也在。旧记录请先点左下角「导出」，再到新地址「导入」。
+      </span>
+      <a className="ms-auto font-medium underline underline-offset-4" href={MIGRATE_URL}>
+        前往 {MIGRATE_URL.replace(/^https?:\/\//, "")}
+      </a>
     </div>
   );
 }

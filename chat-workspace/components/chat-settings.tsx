@@ -15,6 +15,7 @@ import {
   reasoningEffortsForModel,
   type ReasoningEffort,
 } from "@/lib/reasoning";
+import { MOTE_MODE, moteApiKey, moteRelayBase, onMoteSettingsChange, withBasePath } from "@/lib/mote";
 
 type LoadState = "idle" | "loading" | "success" | "error";
 
@@ -73,7 +74,28 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
     setLoadError("");
   }, []);
 
+  // 工作台模式:Key 和中转站地址都来自工作台设置(同一域名下的 localStorage)
+  const hydrateFromMote = useCallback(() => {
+    const base = moteRelayBase();
+    const next: ProviderChoice = base ? CUSTOM_PROVIDER_ID : DEFAULT_PROVIDER_ID;
+    setProviderState(next);
+    setCustomUrlState(base);
+    setApiKeyState(moteApiKey());
+    setRememberKeyState(true);
+    setModelState(localStorage.getItem(modelName(next)) ?? "");
+    setModelsByProvider({});
+    setLoadState("idle");
+    setLoadError("");
+  }, []);
+
   useEffect(() => {
+    if (!MOTE_MODE) return;
+    hydrateFromMote();
+    return onMoteSettingsChange(hydrateFromMote);
+  }, [hydrateFromMote]);
+
+  useEffect(() => {
+    if (MOTE_MODE) return;
     const storedProvider = localStorage.getItem("sub2chat:provider");
     const next = isProviderChoice(storedProvider) ? storedProvider : DEFAULT_PROVIDER_ID;
     setProviderState(next);
@@ -87,6 +109,15 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   }, [hydrateProvider]);
 
   useEffect(() => {
+    if (!MOTE_MODE) return;
+    setWebSearchState(localStorage.getItem("sub2chat:web-search") === "true");
+    setReasoningEffortState(
+      normalizeReasoningEffort(localStorage.getItem("sub2chat:reasoning-effort")) ??
+        DEFAULT_REASONING_EFFORT,
+    );
+  }, []);
+
+  useEffect(() => {
     const available = reasoningEffortsForModel(model);
     if (available.length === 0 || available.includes(reasoningEffort)) return;
 
@@ -96,12 +127,14 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   }, [model, reasoningEffort]);
 
   const setProvider = (next: ProviderChoice) => {
+    if (MOTE_MODE) return;
     setProviderState(next);
     localStorage.setItem("sub2chat:provider", next);
     hydrateProvider(next);
   };
 
   const setCustomUrl = (url: string) => {
+    if (MOTE_MODE) return;
     setCustomUrlState(url);
     localStorage.setItem(CUSTOM_URL_NAME, url);
     // 换了地址,之前拉到的模型列表不再可信
@@ -111,12 +144,14 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   };
 
   const setApiKey = (key: string) => {
+    if (MOTE_MODE) return;
     setApiKeyState(key);
     if (rememberKey) localStorage.setItem(keyName(provider), key);
     else sessionStorage.setItem(keyName(provider), key);
   };
 
   const setRememberKey = (remember: boolean) => {
+    if (MOTE_MODE) return;
     setRememberKeyState(remember);
     localStorage.setItem(rememberName(provider), String(remember));
     if (remember) {
@@ -152,13 +187,13 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
     }
     if (!apiKey.trim()) {
       setLoadState("error");
-      setLoadError("请先填写 API Key");
+      setLoadError(MOTE_MODE ? "请先在工作台「设置」里填写 API Key" : "请先填写 API Key");
       return;
     }
     setLoadState("loading");
     setLoadError("");
     try {
-      const response = await fetch("/api/models", {
+      const response = await fetch(withBasePath("/api/models"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider, customUrl, key: apiKey }),
@@ -176,6 +211,12 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
       setLoadError(error instanceof Error ? error.message : "获取模型失败");
     }
   };
+
+  // 工作台模式下 Key 已经有了,打开就拉模型列表,不用手动点「获取模型」
+  useEffect(() => {
+    if (MOTE_MODE && apiKey && loadState === "idle" && !modelsByProvider[provider]) void loadModels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, provider, loadState]);
 
   const value = useMemo<ChatSettingsValue>(
     () => ({
