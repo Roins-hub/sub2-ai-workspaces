@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactElement } from "react";
-import { Check, Eye, EyeOff, KeyRound, RefreshCw, Wifi } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, Link2, RefreshCw, Wifi } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +12,31 @@ import {
 } from "@/components/ui/dialog";
 import { useChatSettings } from "@/components/chat-settings";
 import { ModelSelect } from "@/components/model-select";
-import { PROVIDERS, type ProviderId } from "@/lib/providers";
+import {
+  CUSTOM_PROVIDER_ID,
+  customApiBase,
+  customShortUrl,
+  PROVIDERS,
+  type ProviderChoice,
+  type ProviderId,
+} from "@/lib/providers";
 import { cn } from "@/lib/utils";
 
 export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement }) {
   const settings = useChatSettings();
   const [showKey, setShowKey] = useState(false);
+  const isCustom = settings.provider === CUSTOM_PROVIDER_ID;
+  const customShort = customShortUrl(settings.customUrl);
+  const customUrlInvalid = settings.customUrl.trim() !== "" && !customShort;
+  const providerChoices: { id: ProviderChoice; name: string; shortUrl: string }[] = [
+    ...(Object.keys(PROVIDERS) as ProviderId[]).map((id) => ({
+      id,
+      name: PROVIDERS[id].name,
+      shortUrl: PROVIDERS[id].shortUrl,
+    })),
+    { id: CUSTOM_PROVIDER_ID, name: "自定义中转站", shortUrl: customShort || "填写任意兼容地址" },
+  ];
+  const activeShortUrl = isCustom ? customShort : PROVIDERS[settings.provider as ProviderId].shortUrl;
 
   return (
     <Dialog>
@@ -33,8 +52,8 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
         <div className="space-y-6 px-6 py-5">
           <section className="space-y-2.5">
             <div className="text-sm font-medium">中转站</div>
-            <div className={cn("grid gap-2", Object.keys(PROVIDERS).length > 1 ? "grid-cols-2" : "grid-cols-1")}>
-              {(Object.keys(PROVIDERS) as ProviderId[]).map((id) => (
+            <div className="grid grid-cols-2 gap-2">
+              {providerChoices.map(({ id, name, shortUrl }) => (
                 <button
                   key={id}
                   type="button"
@@ -48,14 +67,41 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
                     {settings.provider === id && <Check className="size-4" />}
                   </span>
                   <span className="min-w-0">
-                    <strong className="block truncate font-medium">{PROVIDERS[id].name}</strong>
-                    <small className="block truncate text-muted-foreground">
-                      {PROVIDERS[id].shortUrl}
-                    </small>
+                    <strong className="block truncate font-medium">{name}</strong>
+                    <small className="block truncate text-muted-foreground">{shortUrl}</small>
                   </span>
                 </button>
               ))}
             </div>
+            {isCustom && (
+              <div className="space-y-1.5 pt-1">
+                <label className="flex items-center gap-2 text-sm font-medium" htmlFor="custom-url">
+                  <Link2 className="size-4" /> 中转站地址
+                </label>
+                <div className="settings-input">
+                  <input
+                    id="custom-url"
+                    value={settings.customUrl}
+                    onChange={(event) => settings.setCustomUrl(event.target.value)}
+                    placeholder="https://api.example.com/v1"
+                    inputMode="url"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="w-full bg-transparent px-3.5 py-3 text-sm outline-none"
+                  />
+                </div>
+                {customUrlInvalid ? (
+                  <p className="text-xs text-destructive">地址格式不正确，请填写 http(s):// 开头的网址</p>
+                ) : (
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    填写兼容 OpenAI 接口的地址，未带 /v1 时自动补全。请求由本站服务器转发
+                    {customApiBase(settings.customUrl)?.startsWith("http://") &&
+                      "；当前为 http，Key 会以明文传输"}
+                    。
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           <section className="space-y-2.5">
@@ -136,7 +182,7 @@ export function ConnectionSettingsDialog({ trigger }: { trigger: ReactElement })
             )}
             {settings.loadState === "success" && (
               <p className="text-xs text-muted-foreground">
-                已从 {PROVIDERS[settings.provider].shortUrl} 获取 {settings.models.length} 个模型
+                已从 {activeShortUrl} 获取 {settings.models.length} 个模型
               </p>
             )}
           </section>

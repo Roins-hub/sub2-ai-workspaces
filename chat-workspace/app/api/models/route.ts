@@ -1,5 +1,6 @@
 import { chatModelIds, type RelayModel } from "@/lib/chat-models";
-import { isProviderId, normalizeApiKey, PROVIDERS } from "@/lib/providers";
+import { normalizeApiKey } from "@/lib/providers";
+import { blockedAddressMessage, resolveRelayTarget } from "@/lib/relay-target";
 
 export const runtime = "nodejs";
 
@@ -14,9 +15,10 @@ export async function POST(request: Request) {
     return errorResponse("请求内容不是有效的 JSON。", 400);
   }
 
-  const input = body as { provider?: unknown; key?: unknown };
-  if (!isProviderId(input.provider)) {
-    return errorResponse("不支持的中转站。", 400);
+  const input = body as { provider?: unknown; customUrl?: unknown; key?: unknown };
+  const relay = resolveRelayTarget(input.provider, input.customUrl);
+  if (!relay.ok) {
+    return errorResponse(relay.error, 400);
   }
 
   const apiKey = normalizeApiKey(input.key);
@@ -28,7 +30,7 @@ export async function POST(request: Request) {
   const timeout = setTimeout(() => controller.abort(), 20_000);
 
   try {
-    const upstream = await fetch(`${PROVIDERS[input.provider].baseUrl}/v1/models`, {
+    const upstream = await relay.fetch(`${relay.apiBase}/models`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",
@@ -66,6 +68,11 @@ export async function POST(request: Request) {
     if (error instanceof Error && error.name === "AbortError") {
       return errorResponse("连接中转站超时，请稍后重试。", 504);
     }
+    if (error instanceof SyntaxError) {
+      return errorResponse("中转站返回的不是有效的模型列表，请检查地址是否正确。", 502);
+    }
+    const blocked = blockedAddressMessage(error);
+    if (blocked) return errorResponse(blocked, 400);
     return errorResponse("无法连接中转站，请检查其服务状态。", 502);
   } finally {
     clearTimeout(timeout);

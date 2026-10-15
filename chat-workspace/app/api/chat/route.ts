@@ -1,7 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { frontendTools, injectQuoteContext, type FrontendTools } from "@assistant-ui/react-ai-sdk";
 import { streamText, convertToModelMessages, type ToolSet, type UIMessage } from "ai";
-import { isProviderId, normalizeApiKey, normalizeModel, providerApiBase } from "@/lib/providers";
+import { normalizeApiKey, normalizeModel } from "@/lib/providers";
+import { resolveRelayTarget } from "@/lib/relay-target";
 import { IMAGE_WORKSPACE_TOOL_NAME } from "@/lib/image-workspace";
 import { reasoningOptionsForModel } from "@/lib/reasoning";
 import { usesChatCompletions, repairResponsesStream, chatErrorMessage } from "@/lib/relay-compat";
@@ -103,6 +104,7 @@ export async function POST(req: Request) {
     messages?: UIMessage[];
     system?: string;
     provider?: unknown;
+    customUrl?: unknown;
     key?: unknown;
     model?: unknown;
     webSearch?: unknown;
@@ -117,8 +119,9 @@ export async function POST(req: Request) {
     return errorResponse("请求内容不是有效的 JSON。", 400);
   }
 
-  if (!isProviderId(body.provider)) {
-    return errorResponse("请选择有效的中转站。", 400);
+  const relay = resolveRelayTarget(body.provider, body.customUrl);
+  if (!relay.ok) {
+    return errorResponse(relay.error, 400);
   }
 
   const apiKey = normalizeApiKey(body.key);
@@ -154,10 +157,10 @@ export async function POST(req: Request) {
 
   const chatProtocol = usesChatCompletions(model);
   const openai = createOpenAI({
-    baseURL: providerApiBase(body.provider),
+    baseURL: relay.apiBase,
     apiKey,
     fetch: async (url, init) => {
-      const response = await fetch(url, init);
+      const response = await relay.fetch(url, init);
       return chatProtocol ? response : repairResponsesStream(response);
     },
   });

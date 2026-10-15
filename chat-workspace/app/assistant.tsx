@@ -63,7 +63,7 @@ const shouldContinueAfterFrontendTool = ({ messages }: { messages: UIMessage[] }
 };
 
 function ChatRuntime({ children }: { children: React.ReactNode }) {
-  const { provider, apiKey, model, webSearch, reasoningEffort } = useChatSettings();
+  const { provider, customUrl, apiKey, model, webSearch, reasoningEffort } = useChatSettings();
   const plugins = usePluginSettings();
   const imagePluginEnabled = plugins.isEnabled("image-workspace");
   const [dictationAdapter, setDictationAdapter] = useState<WebSpeechDictationAdapter | undefined>(
@@ -95,6 +95,7 @@ function ChatRuntime({ children }: { children: React.ReactNode }) {
             messageId: options.messageId,
             metadata: options.requestMetadata,
             provider,
+            customUrl,
             key: apiKey,
             model,
             webSearch,
@@ -103,7 +104,7 @@ function ChatRuntime({ children }: { children: React.ReactNode }) {
           },
         }),
       }),
-    [provider, apiKey, model, webSearch, reasoningEffort, imagePluginEnabled],
+    [provider, customUrl, apiKey, model, webSearch, reasoningEffort, imagePluginEnabled],
   );
 
   const runtime = useRemoteThreadListRuntime({
