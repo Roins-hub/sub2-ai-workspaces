@@ -24,11 +24,13 @@ import { indexedDbThreadAdapter } from "@/lib/thread-adapter";
 import { imageWorkspaceToolkit } from "@/components/image-workspace-tool";
 import { IMAGE_WORKSPACE_TOOL_NAME } from "@/lib/image-workspace";
 import { BASE_PATH, MIGRATE_URL, MOTE_MODE, withBasePath } from "@/lib/mote";
+import { inlineMoteImages, MoteImageAttachmentAdapter, openMoteSession } from "@/lib/mote-attachments";
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
+// 工作台模式:图片存到工作台的对象存储,聊天记录里只存地址
 const baseAttachmentAdapter = new CompositeAttachmentAdapter([
-  new SimpleImageAttachmentAdapter(),
+  MOTE_MODE ? new MoteImageAttachmentAdapter() : new SimpleImageAttachmentAdapter(),
   new SimpleTextAttachmentAdapter(),
 ]);
 
@@ -75,6 +77,11 @@ function ChatRuntime({ children }: { children: React.ReactNode }) {
     undefined,
   );
 
+  // 直接打开 /chat 时补上看图用的登录 Cookie
+  useEffect(() => {
+    if (MOTE_MODE) void openMoteSession();
+  }, [apiKey]);
+
   useEffect(() => {
     if (WebSpeechDictationAdapter.isSupported()) {
       setDictationAdapter(
@@ -95,7 +102,7 @@ function ChatRuntime({ children }: { children: React.ReactNode }) {
           body: {
             ...(options.body as Record<string, unknown> | undefined),
             id: options.id,
-            messages: options.messages,
+            messages: MOTE_MODE ? await inlineMoteImages(options.messages) : options.messages,
             trigger: options.trigger,
             messageId: options.messageId,
             metadata: options.requestMetadata,
