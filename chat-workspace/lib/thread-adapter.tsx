@@ -14,9 +14,14 @@ import type {
   MessageFormatRepository,
   ThreadHistoryAdapter,
 } from "@assistant-ui/core";
-import { chatStorage } from "@/lib/chat-storage";
+import { cachedChatTimes, chatItemTimes, chatStorage, saveChatTimes } from "@/lib/chat-storage";
+import { CHAT_CACHE_REFRESH } from "@/lib/chat-cache";
+import { noteChatActivity } from "@/lib/chat-activity";
 
 const PREFIX = "sub2chat:";
+/** 线程列表在存储里的键(和 createLocalStorageAdapter 的约定一致) */
+export const THREADS_KEY = `${PREFIX}threads`;
+export const MESSAGES_KEY_PREFIX = `${PREFIX}messages:`;
 const mutationTails = new Map<string, Promise<void>>();
 
 function queued<T>(key: string, operation: () => Promise<T>): Promise<T> {
@@ -89,6 +94,7 @@ function IndexedDbHistoryProvider({ children }: { children?: React.ReactNode }) 
               else repository.messages.push(item);
               repository.headId = id;
               await chatStorage.setItem(key, JSON.stringify(repository));
+              noteChatActivity(remoteId);
             });
           },
           async update(item, localMessageId) {
@@ -104,6 +110,7 @@ function IndexedDbHistoryProvider({ children }: { children?: React.ReactNode }) 
               else repository.messages.push(item);
               repository.headId = formatAdapter.getId(item.message);
               await chatStorage.setItem(key, JSON.stringify(repository));
+              noteChatActivity(remoteId);
             });
           },
           async delete(items: MessageFormatItem<TMessage>[]) {
@@ -139,5 +146,31 @@ const baseAdapter = createLocalStorageAdapter({
 
 export const indexedDbThreadAdapter = {
   ...baseAdapter,
+  /** 线程列表带上每个聊天最后一条消息的时间(存储里消息记录最后写入的时间),侧栏悬停卡片和日期分段要用 */
+  async list() {
+    const result = await baseAdapter.list();
+    const keys = result.threads.map((thread) => `${PREFIX}messages:${thread.remoteId}`);
+    // 有缓存的时间就先用(不等服务端),后台取到最新的再更新;变了就让列表重新读一次
+    const cached = cachedChatTimes();
+    const request = chatItemTimes(keys).then((fresh) => {
+      const changed = keys.some((key) => fresh[key] !== cached[key]);
+      saveChatTimes(fresh);
+      if (changed && Object.keys(cached).length) {
+        window.dispatchEvent(new CustomEvent(CHAT_CACHE_REFRESH, { detail: THREADS_KEY }));
+      }
+      return fresh;
+    }).catch(() => ({} as Record<string, string>));
+    const times = Object.keys(cached).length ? cached : await request;
+    return {
+      ...result,
+      threads: result.threads.map((thread) => {
+        const time = (times as Record<string, string>)[`${PREFIX}messages:${thread.remoteId}`];
+        if (!time) return thread;
+        const lastMessageAt = new Date(time);
+        noteChatActivity(thread.remoteId, lastMessageAt);
+        return { ...thread, lastMessageAt };
+      }),
+    };
+  },
   unstable_Provider: IndexedDbHistoryProvider,
 };

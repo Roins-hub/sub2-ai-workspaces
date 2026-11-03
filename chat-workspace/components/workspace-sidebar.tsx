@@ -1,14 +1,14 @@
 "use client";
 
 import { useRef, useState, type MouseEvent } from "react";
-import { Clapperboard, Download, FileUp, MessageSquare, Trash2, X } from "lucide-react";
+import { ArrowUpRight, Clapperboard, Download, FileUp, MessageSquare, Paperclip, Trash2, X } from "lucide-react";
 import {
   ThreadListItems,
   ThreadListNew,
   ThreadListRoot,
 } from "@/components/assistant-ui/thread-list";
 import { clearAllChatHistory, exportChatHistory, importChatHistory } from "@/lib/chat-storage";
-import { MOTE_HOME, MOTE_MODE } from "@/lib/mote";
+import { MOTE_ATTACHMENTS, MOTE_HOME, MOTE_MODE } from "@/lib/mote";
 import { cn } from "@/lib/utils";
 import { HOME_URL } from "@/lib/home";
 
@@ -123,7 +123,7 @@ export function WorkspaceSidebar({ open, onClose, collapsed }: WorkspaceSidebarP
             title={MOTE_MODE ? "回到视频 · 图片工作台" : undefined}
           >
             <MessageSquare className="size-5 shrink-0" strokeWidth={2.15} />
-            <span className="whitespace-nowrap text-foreground/90">{MOTE_MODE ? "Mote 对话" : "SUB2 聊天"}</span>
+            <span className="whitespace-nowrap text-foreground/90">{MOTE_MODE ? "TZ 聊天" : "SUB2 聊天"}</span>
           </a>
           <button
             className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted md:hidden"
@@ -154,6 +154,23 @@ export function WorkspaceSidebar({ open, onClose, collapsed }: WorkspaceSidebarP
             )}
             title={collapsed ? "新聊天" : undefined}
           />
+          {MOTE_MODE && (
+            // 附件管理:聊天里上传的图片和文档(和工作台的资产页同一套)
+            <a
+              href={MOTE_ATTACHMENTS}
+              title={collapsed ? "附件" : "聊天里上传的图片和文档"}
+              className={cn(
+                "flex h-8 shrink-0 items-center overflow-hidden rounded-md text-sm text-foreground/90 transition-all duration-200 hover:bg-muted",
+                collapsed ? "md:w-8 md:justify-center md:gap-0 md:px-2" : "w-full gap-2 px-2.5",
+              )}
+            >
+              <Paperclip className="size-4 shrink-0" />
+              <span className={cn(
+                "overflow-hidden whitespace-nowrap transition-all duration-200",
+                collapsed ? "md:max-w-0 md:opacity-0" : "max-w-24 opacity-100",
+              )}>附件</span>
+            </a>
+          )}
           <ThreadListItems
             aria-hidden={collapsed}
             inert={collapsed}
@@ -173,8 +190,19 @@ export function WorkspaceSidebar({ open, onClose, collapsed }: WorkspaceSidebarP
           )}
         >
           {MOTE_MODE && (
-            <a href={MOTE_HOME} className="history-tool mx-2 mt-1 flex justify-start gap-2 px-2.5">
-              <Clapperboard /> 视频 · 图片工作台
+            // 回工作台的入口:做成一张带边框的卡片,比底部的小工具按钮醒目
+            <a
+              href={MOTE_HOME}
+              className="group mx-2 mb-1 mt-2 flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5 shadow-sm transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-foreground/25 hover:shadow-md"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background">
+                <Clapperboard className="size-[18px]" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[15px] font-semibold text-foreground">视频 · 图片工作台</span>
+                <span className="truncate text-xs text-muted-foreground">去生成图片和视频</span>
+              </span>
+              <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             </a>
           )}
           <HistoryTools />

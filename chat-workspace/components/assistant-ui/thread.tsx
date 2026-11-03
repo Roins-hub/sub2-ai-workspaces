@@ -31,6 +31,9 @@ import { usePluginSettings } from "@/components/plugin-settings";
 import { ModelSelect } from "@/components/model-select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PANEL_EDGES, useExpandablePanel } from "@/lib/expandable-panel";
+import { messageAnchorId, ThreadNavigator } from "@/components/assistant-ui/thread-navigator";
+import { ComposerGroupPicker } from "@/components/assistant-ui/group-picker";
 import { copyTextToClipboard } from "@/lib/browser-actions";
 import {
   ActionBarMorePrimitive,
@@ -64,13 +67,16 @@ import {
   Globe2Icon,
   ImageIcon,
   LightbulbIcon,
+  Maximize2Icon,
   MicIcon,
+  Minimize2Icon,
   MoreHorizontalIcon,
   PenLineIcon,
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
   WrenchIcon,
+  XIcon,
 } from "lucide-react";
 import {
   useEffect,
@@ -101,7 +107,7 @@ export const Thread: FC = () => {
 
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
+      className="aui-root aui-thread-root bg-background @container relative flex h-full flex-col"
       style={{
         ["--thread-max-width" as string]: "44rem",
         ["--composer-bg" as string]:
@@ -143,6 +149,7 @@ export const Thread: FC = () => {
           </AuiIf>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+      <ThreadNavigator />
       <SelectionToolbar />
     </ThreadPrimitive.Root>
   );
@@ -467,7 +474,8 @@ const ComposerEditableInput: FC<{
   onKeyDown: KeyboardEventHandler<HTMLDivElement>;
   onPaste: ClipboardEventHandler<HTMLDivElement>;
   inputRef: React.RefObject<HTMLDivElement | null>;
-}> = ({ value, commandItem, disabled, onChange, onKeyDown, onPaste, inputRef }) => {
+  expanded?: boolean;
+}> = ({ value, commandItem, disabled, onChange, onKeyDown, onPaste, inputRef, expanded }) => {
   useLayoutEffect(() => {
     const root = inputRef.current;
     if (!root || editableText(root) === value) return;
@@ -487,7 +495,10 @@ const ComposerEditableInput: FC<{
       suppressContentEditableWarning
       spellCheck
       tabIndex={disabled ? -1 : 0}
-      className="aui-composer-input caret-primary relative z-10 max-h-32 min-h-10 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-2.5 py-1 text-base leading-6 outline-none placeholder:text-muted-foreground/80"
+      className={cn(
+        "aui-composer-input caret-primary relative z-10 min-h-10 w-full resize-none overflow-y-auto whitespace-pre-wrap break-words bg-transparent px-2.5 py-1 text-base leading-6 outline-none placeholder:text-muted-foreground/80",
+        expanded ? "h-full leading-7" : "max-h-32",
+      )}
       data-placeholder="发个消息……"
       onInput={(event) => onChange(editableText(event.currentTarget))}
       onKeyDown={onKeyDown}
@@ -524,6 +535,38 @@ const Composer: FC = () => {
     ? (allCommands.find((item) => item.command === highlightedCommand) ?? null)
     : null;
   const menuOpen = commandQuery !== null && dismissedText !== text;
+
+  const focusInputEnd = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    setEditableCaret(input, editableText(input).length);
+  };
+  // 放大编辑:输入框整个飞到屏幕中间(附件、模型、工具都在),可拖边角调整大小
+  const shellRef = useRef<HTMLDivElement>(null);
+  const holderRef = useRef<HTMLDivElement>(null);
+  const panel = useExpandablePanel({
+    panelRef: shellRef,
+    holderRef,
+    storageKey: "chat.composerPanelSize",
+    onOpened: focusInputEnd,
+    onClosed: focusInputEnd,
+  });
+
+  /** 一键清空:用编辑命令删除,误点了可以 Ctrl / ⌘ + Z 撤销 */
+  const clearText = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.selectNodeContents(input);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    if (!document.execCommand("delete")) input.replaceChildren();
+    composerInput.setText("");
+    setDismissedText(null);
+  };
 
   useEffect(() => setActiveCommand(0), [commandQuery]);
   useEffect(() => {
@@ -607,9 +650,17 @@ const Composer: FC = () => {
       return;
     }
 
-    if (event.key === "Enter" && !event.shiftKey && !menuOpen) {
+    if (event.key === "Enter" && !event.shiftKey && !menuOpen && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (composerInput.canSend) composerInput.send();
+      // 放大编辑时 Enter 换行、Ctrl / ⌘ + Enter 发送
+      if (panel.expanded && !event.ctrlKey && !event.metaKey) {
+        document.execCommand("insertLineBreak");
+        return;
+      }
+      if (composerInput.canSend) {
+        panel.close();
+        composerInput.send();
+      }
       return;
     }
 
@@ -643,17 +694,20 @@ const Composer: FC = () => {
     );
   };
 
-  return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      {menuOpen && (
+  const commandMenu = menuOpen ? (
         <div
           role="listbox"
           aria-label="斜杠命令"
           className={cn(
-            "absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-col overflow-hidden rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_color-mix(in_oklab,#000_18%,transparent)]",
-            isNewChat
-              ? "max-h-[min(16rem,calc(50dvh-4rem))]"
-              : "max-h-[min(32rem,calc(100dvh-11rem))]",
+            "absolute z-30 flex flex-col overflow-hidden rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-[0_16px_40px_color-mix(in_oklab,#000_18%,transparent)]",
+            panel.expanded
+              ? "inset-x-4 top-14 max-h-[min(24rem,60%)]"
+              : cn(
+                  "right-0 bottom-full left-0 mb-2",
+                  isNewChat
+                    ? "max-h-[min(16rem,calc(50dvh-4rem))]"
+                    : "max-h-[min(32rem,calc(100dvh-11rem))]",
+                ),
           )}
         >
           <div className="flex shrink-0 items-center justify-between px-2.5 py-1.5">
@@ -740,15 +794,78 @@ const Composer: FC = () => {
             )}
           </div>
         </div>
+  ) : null;
+
+  return (
+    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+      {panel.floating && (
+        <div
+          className={cn("composer-backdrop", panel.closing && "is-closing")}
+          onClick={panel.close}
+          aria-hidden="true"
+        />
       )}
+      {!panel.expanded && commandMenu}
+      <div ref={holderRef} style={panel.holderStyle}>
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
+          ref={shellRef}
+          style={panel.panelStyle}
+          role={panel.expanded ? "dialog" : undefined}
+          aria-label={panel.expanded ? "放大编辑提示词" : undefined}
           data-slot="aui_composer-shell"
-          className="composer-shell border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)] data-[dragging=true]:border-dashed dark:shadow-none"
+          className={cn(
+            panel.expanded ? "composer-expanded" : "p-(--composer-padding)",
+            panel.floating && "composer-floating",
+            "composer-shell border-border/60 data-[dragging=true]:border-ring focus-within:border-border dark:border-muted-foreground/15 dark:focus-within:border-muted-foreground/30 flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)] data-[dragging=true]:border-dashed dark:shadow-none",
+          )}
         >
+          {panel.expanded && (
+            <>
+              <div className="composer-expand-head" onPointerDown={panel.startMove}>
+                <strong>编辑提示词</strong>
+                <span>{[...text.trim()].length} 字 · Enter 换行 · Ctrl / ⌘ + Enter 发送 · Esc 收起</span>
+                {text.trim() && (
+                  <button
+                    type="button"
+                    className="composer-expand-clear"
+                    onClick={clearText}
+                    title="清空提示词（Ctrl / ⌘ + Z 可撤销）"
+                  >
+                    <XIcon className="size-3.5" />
+                    清空
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={panel.close}
+                  aria-label="收起"
+                  title="收起（Esc）"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-8 items-center justify-center rounded-lg transition-colors"
+                >
+                  <Minimize2Icon className="size-4" />
+                </button>
+              </div>
+              {PANEL_EDGES.map((edge) => (
+                <span
+                  key={edge}
+                  className="panel-resize"
+                  data-edge={edge}
+                  onPointerDown={panel.startResize(edge)}
+                  aria-hidden="true"
+                />
+              ))}
+              {commandMenu}
+            </>
+          )}
           <ComposerQuotePreview />
           <ComposerAttachments />
-          <div className="relative">
+          <div
+            className={cn(
+              "relative",
+              panel.expanded ? "min-h-0 flex-1" : text.trim() ? "pe-16" : "pe-8",
+            )}
+          >
             <ComposerEditableInput
               value={text}
               commandItem={highlightedCommandItem}
@@ -757,11 +874,38 @@ const Composer: FC = () => {
               onKeyDown={handleComposerKeyDown}
               onPaste={handlePaste}
               inputRef={inputRef}
+              expanded={panel.expanded}
             />
+            {!panel.expanded && (
+              <div className="absolute end-0 top-0 z-20 flex items-center gap-0.5">
+                {text.trim() && (
+                  <button
+                    type="button"
+                    onClick={clearText}
+                    title="清空提示词（Ctrl / ⌘ + Z 可撤销）"
+                    aria-label="清空提示词"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-7 items-center justify-center rounded-lg transition-colors"
+                  >
+                    <XIcon className="size-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={composerInput.isDisabled}
+                  onClick={panel.open}
+                  title="放大编辑提示词"
+                  aria-label="放大编辑提示词"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted flex size-7 items-center justify-center rounded-lg transition-colors disabled:opacity-40"
+                >
+                  <Maximize2Icon className="size-3.5" />
+                </button>
+              </div>
+            )}
           </div>
           <ComposerAction />
         </div>
       </ComposerPrimitive.AttachmentDropzone>
+      </div>
     </ComposerPrimitive.Root>
   );
 };
@@ -810,6 +954,8 @@ const ComposerAction: FC = () => {
           </span>
           <span className="sr-only">{settings.webSearch ? "已开启" : "已关闭"}</span>
         </button>
+        {/* 当前聊天所在的项目分组(和侧栏同一份) */}
+        <ComposerGroupPicker />
       </div>
       <div className="flex items-center gap-1.5">
         <ReasoningEffortControl />
@@ -1212,9 +1358,11 @@ const AssistantActionBar: FC = () => {
 
 const UserMessage: FC = () => {
   const allCommands = useSlashCommands();
+  const messageId = useAuiState((s) => s.message.id);
 
   return (
     <MessagePrimitive.Root
+      id={messageAnchorId(messageId)}
       data-slot="aui_user-message-root"
       className="fade-in slide-in-from-bottom-1 animate-in mx-auto grid w-full max-w-(--thread-max-width) auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
       data-role="user"

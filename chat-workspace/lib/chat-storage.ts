@@ -5,7 +5,8 @@ import {
   importChatBackup,
   indexedDbStorage,
 } from "@/lib/indexed-db-storage";
-import { MOTE_MODE, moteHeaders } from "@/lib/mote";
+import { MOTE_MODE, moteAccountHash, moteHeaders } from "@/lib/mote";
+import { cachedStorage } from "@/lib/chat-cache";
 
 /**
  * 聊天记录存哪里:
@@ -17,6 +18,21 @@ const STORE_API = "/api/chat-store";
 const BACKUP_FORMAT = "sub2image-chat-backup";
 
 type BackupEntry = { key: string; value: string };
+
+/**
+ * 一批键最后一次写入的时间(只在工作台模式下有,独立部署的 IndexedDB 不记时间,返回空)。
+ * 分批请求,避免地址太长。
+ */
+export async function chatItemTimes(keys: readonly string[]): Promise<Record<string, string>> {
+  if (!MOTE_MODE || !keys.length) return {};
+  const times: Record<string, string> = {};
+  for (let start = 0; start < keys.length; start += 80) {
+    const batch = keys.slice(start, start + 80).map(encodeURIComponent).join(",");
+    const data = await call<{ times?: Record<string, string> }>(`${STORE_API}?times=${batch}`).catch(() => ({ times: {} }));
+    Object.assign(times, data.times || {});
+  }
+  return times;
+}
 
 async function call<T>(input: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(input, {
@@ -44,7 +60,21 @@ const moteStorage: AsyncStorageLike = {
   },
 };
 
-export const chatStorage: AsyncStorageLike = MOTE_MODE ? moteStorage : indexedDbStorage;
+// 工作台模式:先给浏览器缓存里的(打开不空白),后台再和服务端对一遍(见 chat-cache.ts)
+const cachedMoteStorage = cachedStorage(moteStorage, moteAccountHash);
+export const chatStorage: AsyncStorageLike = MOTE_MODE ? cachedMoteStorage : indexedDbStorage;
+
+/** 每个聊天最近时间的缓存(列表一打开就能显示「x 小时前」和日期分段) */
+const timesCacheKey = () => `sub2chat:times-cache:${moteAccountHash()}`;
+export function cachedChatTimes(): Record<string, string> {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(timesCacheKey()) || "{}");
+    return value && typeof value === "object" ? value as Record<string, string> : {};
+  } catch { return {}; }
+}
+export function saveChatTimes(times: Record<string, string>) {
+  try { window.localStorage.setItem(timesCacheKey(), JSON.stringify(times)); } catch { /* 存不下就算了 */ }
+}
 
 export async function exportChatHistory(): Promise<string> {
   if (!MOTE_MODE) return exportChatBackup();
@@ -69,9 +99,11 @@ export async function importChatHistory(raw: string): Promise<void> {
     throw new Error("备份文件格式不正确");
   }
   await call(STORE_API, { method: "POST", body: JSON.stringify({ entries: parsed.entries }) });
+  await cachedMoteStorage.clear();
 }
 
 export async function clearAllChatHistory(): Promise<void> {
   if (!MOTE_MODE) return clearChatHistory();
   await call(`${STORE_API}?all=1`, { method: "DELETE" });
+  await cachedMoteStorage.clear();
 }

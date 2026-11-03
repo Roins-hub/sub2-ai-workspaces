@@ -6,6 +6,7 @@ import { ConnectionSettingsDialog } from "@/components/connection-settings-dialo
 import { McpConfigDialog } from "@/components/assistant-ui/mcp-config";
 import { PluginConfigDialog } from "@/components/plugin-config-dialog";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { BackToTop } from "@/components/assistant-ui/back-to-top";
 import { useTheme } from "@/components/theme-provider";
 import { getImageWorkspaceOrigin } from "@/lib/image-workspace";
 import { HOME_URL } from "@/lib/home";
@@ -52,7 +53,7 @@ export function WorkspaceHeader({
 
       <nav className="ms-auto flex items-center gap-0.5" aria-label="工作台导航">
         {MOTE_MODE ? (
-          // 和视频、图片同一个网站:一个入口回工作台;主题在工作台设置里统一切换
+          // 和视频、图片同一个网站:一个入口回工作台;主题在工作台设置里统一切换(附件在左侧栏「新聊天」下面)
           <TooltipIconButton tooltip="视频 · 图片工作台" onClick={() => window.location.assign(MOTE_HOME)}>
             <Clapperboard />
           </TooltipIconButton>
@@ -98,6 +99,8 @@ export function WorkspaceHeader({
             </button>
           }
         />
+        {/* 最右边,和视频工作台的「回到顶部」同位置、同样式;往下翻约一屏后出现 */}
+        <BackToTop />
       </nav>
     </header>
   );

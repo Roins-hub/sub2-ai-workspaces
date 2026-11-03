@@ -15,7 +15,19 @@ import {
   reasoningEffortsForModel,
   type ReasoningEffort,
 } from "@/lib/reasoning";
-import { MOTE_MODE, moteApiKey, moteRelayBase, onMoteSettingsChange, withBasePath } from "@/lib/mote";
+import {
+  MOTE_MODE, moteAccountHash, moteChatKey, moteChatKeys, moteRelayBase, onMoteSettingsChange, withBasePath,
+} from "@/lib/mote";
+
+/** 聊天模型列表的缓存(按账号):打开就能选模型,后台再刷新 */
+const modelsCacheKey = () => `sub2chat:models-cache:${moteAccountHash()}`;
+function readModelsCache(): { models: string[]; owners: Record<string, string> } | undefined {
+  try {
+    const value = JSON.parse(localStorage.getItem(modelsCacheKey()) || "null");
+    return value && Array.isArray(value.models) ? value : undefined;
+  } catch { return undefined; }
+}
+import { compareModelsNewestFirst } from "@/lib/chat-models";
 
 type LoadState = "idle" | "loading" | "success" | "error";
 
@@ -51,6 +63,9 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
   const [provider, setProviderState] = useState<ProviderChoice>(DEFAULT_PROVIDER_ID);
   const [customUrl, setCustomUrlState] = useState("");
   const [apiKey, setApiKeyState] = useState("");
+  // 工作台模式下「聊天」可以有几个 Key:模型列表取合集,记下每个模型来自哪个 Key
+  const [chatKeys, setChatKeys] = useState<string[]>([]);
+  const [modelKeys, setModelKeys] = useState<Record<string, string>>({});
   const [rememberKey, setRememberKeyState] = useState(false);
   const [model, setModelState] = useState("");
   const [modelsByProvider, setModelsByProvider] = useState<
@@ -80,10 +95,13 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
     const next: ProviderChoice = base ? CUSTOM_PROVIDER_ID : DEFAULT_PROVIDER_ID;
     setProviderState(next);
     setCustomUrlState(base);
-    setApiKeyState(moteApiKey());
+    setApiKeyState(moteChatKey());
+    setChatKeys(moteChatKeys());
+    const cachedModels = readModelsCache();
+    setModelKeys(cachedModels?.owners ?? {});
     setRememberKeyState(true);
     setModelState(localStorage.getItem(modelName(next)) ?? "");
-    setModelsByProvider({});
+    setModelsByProvider(cachedModels ? { [next]: cachedModels.models } : {});
     setLoadState("idle");
     setLoadError("");
   }, []);
@@ -193,14 +211,32 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
     setLoadState("loading");
     setLoadError("");
     try {
-      const response = await fetch(withBasePath("/api/models"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, customUrl, key: apiKey }),
-      });
-      const data = (await response.json()) as { models?: string[]; error?: string };
-      if (!response.ok) throw new Error(data.error ?? "获取模型失败");
-      const nextModels = data.models ?? [];
+      // 几个 Key 各取一次模型列表再合起来(先填的 Key 优先);全部失败才报错
+      const keys = MOTE_MODE && chatKeys.length ? chatKeys : [apiKey];
+      const results = await Promise.allSettled(keys.map(async (key) => {
+        const response = await fetch(withBasePath("/api/models"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, customUrl, key }),
+        });
+        const data = (await response.json()) as { models?: string[]; error?: string };
+        if (!response.ok) throw new Error(data.error ?? "获取模型失败");
+        return { key, models: data.models ?? [] };
+      }));
+      const owners: Record<string, string> = {};
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue;
+        for (const id of result.value.models) owners[id] ??= result.value.key;
+      }
+      if (!results.some((result) => result.status === "fulfilled")) {
+        const first = results[0];
+        throw first?.status === "rejected" ? first.reason : new Error("获取模型失败");
+      }
+      setModelKeys(owners);
+      const nextModels = Object.keys(owners).sort(compareModelsNewestFirst);
+      if (MOTE_MODE) {
+        try { localStorage.setItem(modelsCacheKey(), JSON.stringify({ models: nextModels, owners })); } catch { /* 存不下就算了 */ }
+      }
       setModelsByProvider((current) => ({ ...current, [provider]: nextModels }));
       if (nextModels.length > 0 && !nextModels.includes(model)) {
         setModel(nextModels[0]!);
@@ -214,7 +250,8 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
 
   // 工作台模式下 Key 已经有了,打开就拉模型列表,不用手动点「获取模型」
   useEffect(() => {
-    if (MOTE_MODE && apiKey && loadState === "idle" && !modelsByProvider[provider]) void loadModels();
+    // 有缓存的模型列表也照样在后台刷新一次
+    if (MOTE_MODE && apiKey && loadState === "idle") void loadModels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, provider, loadState]);
 
@@ -224,7 +261,8 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
       setProvider,
       customUrl,
       setCustomUrl,
-      apiKey,
+      // 发消息用能调用所选模型的那个 Key(只有一个 Key 时就是它)
+      apiKey: modelKeys[model] || apiKey,
       setApiKey,
       rememberKey,
       setRememberKey,
@@ -243,6 +281,7 @@ export function ChatSettingsProvider({ children }: { children: React.ReactNode }
       provider,
       customUrl,
       apiKey,
+      modelKeys,
       rememberKey,
       model,
       modelsByProvider,
